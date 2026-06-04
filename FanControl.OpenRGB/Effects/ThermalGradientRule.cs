@@ -3,24 +3,45 @@ using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
-  // EFFECT 1: Linear interpolation between two colors based on percentage
-  public class ThermalGradientRule(string deviceRegex, Color colorMin, Color colorMax) : BaseRgbRule(deviceRegex)
+  public class ThermalGradientRule : BaseRgbRule
   {
-    private readonly Color _colorMin = colorMin;
-    private readonly Color _colorMax = colorMax;
+    // Propriétés publiques pour le JSON
+    public string ColorMinHex { get; set; } = "#00FF00"; // Vert par défaut
+    public string ColorMaxHex { get; set; } = "#FF0000"; // Rouge par défaut
+    public float FadeSpeed { get; set; } = 0.1f;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, float value, int frameCount)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
     {
+      Color colorMin = ParseHex(ColorMinHex);
+      Color colorMax = ParseHex(ColorMaxHex);
+
+      // Calcul du ratio de température (0.0 à 1.0)
       float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
 
-      byte r = (byte)(_colorMin.R + (_colorMax.R - _colorMin.R) * ratio);
-      byte g = (byte)(_colorMin.G + (_colorMax.G - _colorMin.G) * ratio);
-      byte b = (byte)(_colorMin.B + (_colorMax.B - _colorMin.B) * ratio);
+      // Calcul de la couleur cible
+      byte r = (byte)(colorMin.R + (colorMax.R - colorMin.R) * ratio);
+      byte g = (byte)(colorMin.G + (colorMax.G - colorMin.G) * ratio);
+      byte b = (byte)(colorMin.B + (colorMax.B - colorMin.B) * ratio);
 
       Color targetColor = new(r, g, b);
 
-      Color[] colors = [.. Enumerable.Repeat(targetColor, device.Leds.Length)];
+      Color[] colors = client.GetControllerData(deviceIndex).Colors;
+
+      // Application avec le fondu
+      ApplyToTargetLeds(device, zoneRegex, colors, targetColor, FadeSpeed);
+
       client.UpdateLeds(deviceIndex, colors);
+    }
+
+    private static Color ParseHex(string hex)
+    {
+      hex = hex.Replace("#", "");
+      if (hex.Length != 6) return new Color(255, 255, 255);
+      return new Color(
+          Convert.ToByte(hex.Substring(0, 2), 16),
+          Convert.ToByte(hex.Substring(2, 2), 16),
+          Convert.ToByte(hex.Substring(4, 2), 16)
+      );
     }
   }
 }

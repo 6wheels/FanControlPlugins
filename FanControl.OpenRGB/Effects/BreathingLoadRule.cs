@@ -4,24 +4,39 @@ using OpenRGB.NET;
 namespace FanControl.OpenRGB.Effects
 {
   // EFFECT 2: Sinusoidal breathing where speed or baseline depends on the curve
-  public class BreathingLoadRule(string deviceRegex, Color baseColor) : BaseRgbRule(deviceRegex)
+  public class BreathingLoadRule : BaseRgbRule
   {
-    private readonly Color _baseColor = baseColor;
+    public string BaseColorHex { get; set; } = "#000022";
+    public string PeakColorHex { get; set; } = "#0000FF";
+    public float BaseSpeed { get; set; } = 0.05f;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, float value, int frameCount)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
     {
-      // Speed up the wave oscillation if the load (%) is high
-      float speedModifier = (value > 70f) ? 0.12f : 0.05f;
-      float pulse = (float)(Math.Sin(frameCount * speedModifier) + 1.0) / 2.0f;
+      Color baseCol = ParseHex(BaseColorHex);
+      Color peakCol = ParseHex(PeakColorHex);
 
-      Color targetColor = new(
-          (byte)(_baseColor.R * pulse),
-          (byte)(_baseColor.G * pulse),
-          (byte)(_baseColor.B * pulse)
-      );
+      // Plus la valeur (load) est haute, plus ça respire vite
+      float currentSpeed = BaseSpeed + (Math.Clamp(value, 0f, 100f) / 100f) * 0.15f;
 
-      Color[] colors = [.. Enumerable.Repeat(targetColor, device.Leds.Length)];
+      // Calcul d'une onde sinusoïdale (entre 0.0 et 1.0)
+      double sine = (Math.Sin(frameCount * currentSpeed) + 1.0) / 2.0;
+
+      byte r = (byte)(baseCol.R + (peakCol.R - baseCol.R) * sine);
+      byte g = (byte)(baseCol.G + (peakCol.G - baseCol.G) * sine);
+      byte b = (byte)(baseCol.B + (peakCol.B - baseCol.B) * sine);
+
+      Color target = new(r, g, b);
+      Color[] colors = client.GetControllerData(deviceIndex).Colors;
+
+      ApplyToTargetLeds(device, zoneRegex, colors, target, 1.0f);
       client.UpdateLeds(deviceIndex, colors);
+    }
+
+    private static Color ParseHex(string hex)
+    { /* Pareil que ci-dessus */
+      hex = hex.Replace("#", "");
+      if (hex.Length != 6) return new Color(255, 255, 255);
+      return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
     }
   }
 }

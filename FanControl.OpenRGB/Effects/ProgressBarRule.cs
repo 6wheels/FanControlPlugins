@@ -1,31 +1,46 @@
+using System.Text.RegularExpressions;
 using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
   // EFFECT 4: Jauge de remplissage linéaire (Barre de progression)
-  public class ProgressBarRule(string deviceRegex, Color filledColor, Color emptyColor) : BaseRgbRule(deviceRegex)
+  public class ProgressBarRule : BaseRgbRule
   {
-    private readonly Color _filledColor = filledColor;
-    private readonly Color _emptyColor = emptyColor;
+    public string EmptyColorHex { get; set; } = "#000000";
+    public string FillColorHex { get; set; } = "#00FF00";
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, float value, int frameCount)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
     {
-      // On s'assure que la valeur est entre 0 et 100
-      float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
+      Color empty = ParseHex(EmptyColorHex);
+      Color fill = ParseHex(FillColorHex);
+      Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
-      // On calcule combien de LEDs doivent être allumées
-      int ledsToLight = (int)(device.Leds.Length * ratio);
+      float ratio = Math.Clamp(value / 100f, 0f, 1f);
+      int ledOffset = 0;
 
-      Color[] colors = new Color[device.Leds.Length];
-
-      // On remplit la jauge
-      for (int i = 0; i < colors.Length; i++)
+      foreach (var zone in device.Zones)
       {
-        colors[i] = (i < ledsToLight) ? _filledColor : _emptyColor;
+        // On vérifie si la zone correspond à notre ciblage
+        if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
+        {
+          int fillCount = (int)(ratio * zone.LedCount);
+          for (int l = 0; l < zone.LedCount; l++)
+          {
+            colors[ledOffset + l] = (l < fillCount) ? fill : empty;
+          }
+        }
+        ledOffset += (int)zone.LedCount;
       }
 
       client.UpdateLeds(deviceIndex, colors);
+    }
+
+    private static Color ParseHex(string hex)
+    { /* Pareil */
+      hex = hex.Replace("#", "");
+      if (hex.Length != 6) return new Color(255, 255, 255);
+      return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
     }
   }
 }

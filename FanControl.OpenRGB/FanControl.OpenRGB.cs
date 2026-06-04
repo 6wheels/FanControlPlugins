@@ -1,139 +1,177 @@
-﻿using FanControl.OpenRGB.Rules;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using FanControl.Plugins;
 using OpenRGB.NET;
+using FanControl.OpenRGB.Rules;
 
 namespace FanControl.OpenRGB
 {
-  public class OpenRgbPlugin : IPlugin
+  public class OpenRgbPlugin(IPluginDialog dialog, IPluginLogger logger) : IPlugin
   {
     public string Name => "OpenRGB";
 
-    private OpenRgbClient _client = null!;
-    private System.Timers.Timer _renderLoop = null!;
-    private bool _isConnected = false;
+    private OpenRgbClient? _client;
+    private Timer? _renderTimer;
+    private Device[] _devices = [];
+
+    private OpenRgbConfig _config = new();
+    private readonly string _configPath = "OpenRGBConfig.json";
+    private readonly string _lockFilePath = Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
+    private bool _isLocked = false;
+    private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
-
-    // Les capteurs virtuels qui apparaîtront dans FanControl
-    private RgbVirtualControl _ctrlLiquidTemp = null!;
-    private RgbVirtualControl _ctrlCpuTemp = null!;
-    private RgbVirtualControl _ctrlGpuTemp = null!;
-    private RgbVirtualControl _ctrlCaseTemp = null!;
-
-    // Animation de démarrage
-    private IRgbRule _bootAnimation = null!;
-
-    private static string GetLockFilePath() => Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
-
-    // Structure pour lier une règle à un capteur
-    private class RuleBinding
-    {
-      public IRgbRule Rule { get; set; } = null!;
-      public RgbVirtualControl Control { get; set; } = null!;
-    }
-    private List<RuleBinding> _bindings = null!;
 
     public void Initialize()
     {
+      if (File.Exists(_configPath))
+      {
+        try
+        {
+          var options = new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+          string json = File.ReadAllText(_configPath);
+          _config = JsonSerializer.Deserialize<OpenRgbConfig>(json, options) ?? new OpenRgbConfig();
+          Log($"Configuration loaded. {_config.Rules.Count} rule(s) found.", LogLevel.Info);
+        }
+        catch (Exception ex)
+        {
+          Log($"Configuration failed: {ex.Message}", LogLevel.Error);
+        }
+      }
+      else
+      {
+        File.WriteAllText(_configPath, JsonSerializer.Serialize(new OpenRgbConfig(), new JsonSerializerOptions { WriteIndented = true }));
+        Log("Template configuration file generated. Please configure it.", LogLevel.Info);
+        dialog.ShowMessageDialog("OpenRGB: Template configuration file generated. Please configure it.");
+        return;
+      }
+
       try
       {
-        _client = new OpenRgbClient(name: "OpenRGB");
+        _client = new OpenRgbClient(name: "FanControl", ip: _config.ServerIp, port: _config.ServerPort);
         _client.Connect();
-        _isConnected = true;
+        _devices = _client.GetAllControllerData();
 
-        // Initialisation de l'animation de boot (Cible le clavier)
-        _bootAnimation = new BootExplosionRule(".*Alloy.*");
+        // LOG 1 : INVENTAIRE DES PÉRIPHÉRIQUES
+        Log($"Connected. {_devices.Length} detected devices:");
+        for (int i = 0; i < _devices.Length; i++)
+        {
+          Log($"Device [{i}] : '{_devices[i].Name}', Available Zones: {_devices[i].Zones})");
+        }
 
-        _renderLoop = new System.Timers.Timer(33); // 30 FPS
-        _renderLoop.Elapsed += RenderLoop_Tick;
-        _renderLoop.Start();
+        int interval = 1000 / _config.Framerate;
+        _renderTimer = new Timer(RenderLoop_Tick, null, 0, interval);
       }
-      catch { _isConnected = false; }
+      catch (Exception ex)
+      {
+        Log($"Connexion failed: {ex.Message}", LogLevel.Error);
+      }
     }
 
     public void Load(IPluginSensorsContainer container)
     {
-      // 1. Déclaration des capteurs virtuels dans l'UI de FanControl
-      _ctrlLiquidTemp = new RgbVirtualControl("RGB_LIQUID", "RGB Liquid Temp");
-      _ctrlCpuTemp = new RgbVirtualControl("RGB_CPU", "RGB CPU Temp");
-      _ctrlGpuTemp = new RgbVirtualControl("RGB_GPU", "RGB GPU Temp");
-      _ctrlCaseTemp = new RgbVirtualControl("RGB_CASE", "RGB Case Temp");
+      _bindings.Clear();
 
-      container.ControlSensors.Add(_ctrlLiquidTemp);
-      container.ControlSensors.Add(_ctrlCpuTemp);
-      container.ControlSensors.Add(_ctrlGpuTemp);
-      container.ControlSensors.Add(_ctrlCaseTemp);
+      foreach (var ruleConf in _config.Rules)
+      {
+        string safeId = string.IsNullOrWhiteSpace(ruleConf.Id)
+            ? $"OPENRGB_{ruleConf.Name.Replace(" ", "_").ToUpper()}"
+            : ruleConf.Id;
 
-      // 2. Mapping des touches pour le mode jeu (Exemple d'indices à vérifier avec ton Scanner)
-      var gameKeys = new Dictionary<int, Color>
-            {
-                { 30, new Color(255, 255, 0) }, // W (Index à ajuster)
-                { 44, new Color(255, 255, 0) }, // A
-                { 45, new Color(255, 255, 0) }, // S
-                { 46, new Color(255, 255, 0) }, // D
-                { 58, new Color(0, 255, 0) },   // LShift
-                { 72, new Color(0, 255, 0) },   // LCtrl
-                { 75, new Color(0, 255, 0) }    // Space
-            };
+        var controlSensor = new OpenRgbControlSensor(safeId, ruleConf.Name);
 
-      // Index des touches F1 à F12 (A vérifier avec le menu 1 de ton script console !)
-      int[] keysF1_F4 = [8, 9, 10, 11];
-      int[] keysF5_F8 = [12, 13, 14, 15];
-      int[] keysF9_F12 = [16, 17, 18, 19];
+        var binding = new RuleBinding
+        {
+          DeviceRegex = ruleConf.DeviceRegex,
+          ZoneRegex = ruleConf.ZoneRegex,
+          Control = controlSensor,
+          ActivationThreshold = ruleConf.ActivationThreshold,
+          MainRule = ruleConf.MainRule,
+          IdleRule = ruleConf.IdleRule
+        };
 
-      // 3. Déclaration des liaisons (L'ORDRE EST CRUCIAL POUR LE CLAVIER !)
-      _bindings =
-            [
-                // Kraken X63 : Zone 1 (Ring) sur Temp Liquide
-                new() { Control = _ctrlLiquidTemp, Rule = new ZoneThermalGradientRule(".*Kraken.*", "Ring", new Color(0, 50, 255), new Color(255, 0, 0)) },
-                
-                // Kraken X63 : Zone 0 (Logo) sur Temp CPU
-                new() { Control = _ctrlCpuTemp, Rule = new ZoneThermalGradientRule(".*Kraken.*", "Logo", new Color(255, 255, 0), new Color(255, 0, 255)) },
+        _bindings.Add(binding);
+        container.ControlSensors.Add(controlSensor);
 
-                // Boitier Smart Device : Respiration sur Temp Boitier
-                new() { Control = _ctrlCaseTemp, Rule = new BreathingThermalRule(".*Smart Device.*", new Color(0, 50, 255), new Color(255, 0, 0)) },
-
-                // CLAVIER (Couches superposées de bas en haut)
-                // Couche 1 : Mode Jeu activé si GPU > 50% (ex: 50°C sur ta courbe)
-                new() { Control = _ctrlGpuTemp, Rule = new GameModeRule(".*Alloy.*", 50f, gameKeys) },
-                
-                // Couche 2 : Les jauges qui s'impriment par-dessus le fond
-                new() { Control = _ctrlLiquidTemp, Rule = new LedGaugeRule(".*Alloy.*", keysF1_F4) },
-                new() { Control = _ctrlCpuTemp,    Rule = new LedGaugeRule(".*Alloy.*", keysF5_F8) },
-                new() { Control = _ctrlGpuTemp,    Rule = new LedGaugeRule(".*Alloy.*", keysF9_F12) }
-            ];
+        // LOG 2 : VÉRIFICATION DES REGEX AU DÉMARRAGE
+        int matchCount = _devices.Count(d => Regex.IsMatch(d.Name ?? "", ruleConf.DeviceRegex));
+        Log($"Card '{ruleConf.Name}' created. Regex '{ruleConf.DeviceRegex}' matches {matchCount} device(s).", LogLevel.Info);
+      }
     }
 
-    private void RenderLoop_Tick(object? sender, System.Timers.ElapsedEventArgs e)
+    private void RenderLoop_Tick(object? state)
     {
-      if (!_isConnected) return;
+      // --- GESTION DU VERROUILLAGE (DEV TOOLKIT) ---
+      bool lockExists = File.Exists(_lockFilePath);
 
-      // Gestion du Lock File (Pour tes tests)
-      if (File.Exists(GetLockFilePath())) return;
-
-      var devices = _client.GetAllControllerData();
-
-      // Séquence de démarrage prioritaire
-      if (!_bootAnimation.IsFinished)
+      if (lockExists)
       {
-        // On simule une valeur à 100 pour la balle
-        _bootAnimation.Apply(_client, devices, 100f, _frameCount);
-      }
-      else
-      {
-        // Comportement normal hiérarchique
-        foreach (var binding in _bindings)
+        if (!_isLocked)
         {
-          // Chaque règle reçoit la valeur de son propre capteur FanControl
-          binding.Rule.Apply(_client, devices, binding.Control.Value ?? 0f, _frameCount);
+          _isLocked = true;
+          Log("Dev Toolkit détecté (Lock file). Mise en pause du plugin...", LogLevel.Warning);
         }
+        return; // On annule totalement l'exécution de cette frame
       }
+      else if (_isLocked)
+      {
+        _isLocked = false;
+        Log("Dev Toolkit fermé. Reprise du contrôle RGB par FanControl.", LogLevel.Info);
+      }
+      // ---------------------------------------------
+
+      // On s'assure qu'on est bien connecté avant de continuer
+      if (_client == null || !_client.Connected) return;
 
       _frameCount++;
+
+      // On logue seulement 1 frame toutes les 2 secondes (si 30 FPS)
+      bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
+
+      foreach (var binding in _bindings)
+      {
+        float val = binding.Control.Value ?? 0f;
+
+        BaseRgbRule? ruleToApply = null;
+        string activeRuleName = "";
+
+        if (val >= binding.ActivationThreshold)
+        {
+          ruleToApply = binding.MainRule;
+          activeRuleName = "MainRule";
+        }
+        else if (binding.IdleRule != null)
+        {
+          ruleToApply = binding.IdleRule;
+          activeRuleName = "IdleRule";
+        }
+
+        // LOG 3 : ÉTAT EN TEMPS RÉEL (Cadencé)
+        if (shouldLogThisFrame)
+        {
+          Log($"Card '{binding.Control.Name}' | Value: {val:F1} | Threshold: {binding.ActivationThreshold} | Active Rule: {activeRuleName}", LogLevel.Debug);
+        }
+
+        ruleToApply?.Apply(_client, _devices, binding.DeviceRegex, binding.ZoneRegex, val, _frameCount);
+      }
+    }
+
+    private void Log(string message, LogLevel level = LogLevel.Info)
+    {
+      // On n'écrit dans le log de FanControl que si le niveau du message 
+      // est supérieur ou égal au niveau demandé dans la config.
+      if (level >= _config.LogLevel)
+      {
+        // On ajoute un préfixe visuel si c'est une erreur ou un debug
+        string prefix = level == LogLevel.Info ? "" : $"[{level.ToString().ToUpper()}] ";
+
+        // 'logger' vient du constructeur primaire de ta classe
+        logger.Log($"[OpenRGB] {prefix}{message}");
+      }
     }
 
     public void Close()
     {
-      _renderLoop?.Stop();
+      _renderTimer?.Dispose();
       _client?.Dispose();
     }
   }
