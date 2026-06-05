@@ -11,7 +11,7 @@ namespace FanControl.OpenRGB.Effects
     Vertical
   }
 
-  public class AuroraBorealisEffect : BaseRgbEffect
+  public class AuroraEffect : BaseRgbEffect
   {
     public string Color1Hex { get; set; } = "#00FF66";
     public string Color2Hex { get; set; } = "#00FFFF";
@@ -31,24 +31,29 @@ namespace FanControl.OpenRGB.Effects
       set => _scale = Math.Clamp(value, 0.01f, 5.0f); // Prevents a scale of 0 that would crush the wave
     }
 
-    // NEW: Choice of wave direction ("Horizontal" or "Vertical")
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
       Color c3 = ParseHex(Color3Hex);
 
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
+
       float time = frameCount * Speed;
       bool isVertical = Direction == AuroraDirection.Vertical;
+
+      // Compute the dynamic intensity (0.0 to 1.0) based on the FanControl sensor
+      float intensity = Math.Clamp(value / 100f, 0.0f, 1.0f);
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)
       {
+        // Zone filter (ex: "Keyboard")
         if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
         {
+          // === 2D Device ===
           if (zone.MatrixMap != null)
           {
             uint width = zone.MatrixMap.Width;
@@ -61,22 +66,53 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < colors.Length)
                 {
-                  // We pass isVertical to the calculation method
-                  colors[ledOffset + ledIndex] = CalculateAuroraColor(x, y, time, c1, c2, c3, isVertical);
+                  string ledName = device.Leds[ledOffset + ledIndex].Name;
+
+                  // LED filter (ex: "^(Key: W|Key: A)$")
+                  if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
+                  {
+                    // Compute the wave color mathematically
+                    Color waveColor = CalculateAuroraColor(x, y, time, c1, c2, c3, isVertical);
+
+                    // Apply the intensity
+                    Color targetColor = new Color(
+                        (byte)(waveColor.R * intensity),
+                        (byte)(waveColor.G * intensity),
+                        (byte)(waveColor.B * intensity)
+                    );
+
+                    // Application de la transition (Fade) pour s'enchaîner doucement avec l'état précédent
+                    colors[ledOffset + ledIndex] = LerpColor(colors[ledOffset + ledIndex], targetColor, transitionSpeed);
+                  }
                 }
               }
             }
           }
+          // === 1D Device ===
           else
           {
             for (int l = 0; l < zone.LedCount; l++)
             {
-              colors[ledOffset + l] = CalculateAuroraColor(l, 0, time, c1, c2, c3, isVertical);
+              string ledName = device.Leds[ledOffset + l].Name;
+
+              if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
+              {
+                Color waveColor = CalculateAuroraColor(l, 0, time, c1, c2, c3, isVertical);
+
+                Color targetColor = new(
+                    (byte)(waveColor.R * intensity),
+                    (byte)(waveColor.G * intensity),
+                    (byte)(waveColor.B * intensity)
+                );
+
+                colors[ledOffset + l] = LerpColor(colors[ledOffset + l], targetColor, transitionSpeed);
+              }
             }
           }
         }
         ledOffset += (int)zone.LedCount;
       }
+
       client.UpdateLeds(deviceIndex, colors);
     }
 

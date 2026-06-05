@@ -3,19 +3,21 @@ using OpenRGB.NET;
 namespace FanControl.OpenRGB.Effects
 {
   // EFFECT 2: Sinusoidal breathing where speed or baseline depends on the curve
-  public class BreathingLoadEffect : BaseRgbEffect
+  public class BreathingEffect : BaseRgbEffect
   {
     public string BaseColorHex { get; set; } = "#000022";
     public string PeakColorHex { get; set; } = "#0000FF";
-    public float BaseSpeed { get; set; } = 0.05f;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
+    public float MinSpeed { get; set; } = 0.02f;
+    public float MaxSpeed { get; set; } = 0.15f;
+
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
     {
       Color baseCol = ParseHex(BaseColorHex);
       Color peakCol = ParseHex(PeakColorHex);
 
       // The higher the value (load), the faster it breathes
-      float currentSpeed = BaseSpeed + (Math.Clamp(value, 0f, 100f) / 100f) * 0.15f;
+      float currentSpeed = MinSpeed + (Math.Clamp(value, 0f, 100f) / 100f) * (MaxSpeed - MinSpeed);
 
       // Calculation of a sinusoidal wave (between 0.0 and 1.0)
       double sine = (Math.Sin(frameCount * currentSpeed) + 1.0) / 2.0;
@@ -27,7 +29,7 @@ namespace FanControl.OpenRGB.Effects
       Color target = new(r, g, b);
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
-      ApplyToTargetLeds(device, zoneRegex, colors, target, 1.0f);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, target, transitionSpeed);
       client.UpdateLeds(deviceIndex, colors);
     }
 

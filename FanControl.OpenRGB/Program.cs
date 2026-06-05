@@ -296,15 +296,27 @@ namespace FanControl.OpenRGB
         }
       }
 
-      Console.WriteLine("\n▶ Starting render loop... Press any key to stop.");
+      Console.Write("\n- Valeur du capteur simulée (0-100, ou 'auto' pour osciller) [Défaut: 100] : ");
+      string? valInput = Console.ReadLine();
+      bool isAutoValue = valInput?.Trim().ToLower() == "auto";
+      float fixedValue = 100f;
+      if (!isAutoValue && float.TryParse(valInput, out float p)) fixedValue = Math.Clamp(p, 0f, 100f);
+
+      Console.WriteLine("\n▶ Lancement de la boucle de rendu... Appuyez sur une touche pour arrêter.");
 
       var devices = client.GetAllControllerData();
       int frameCount = 0;
 
-      // Non-blocking loop to play animation at ~30 FPS
       while (!Console.KeyAvailable)
       {
-        effect.Apply(client, devices, ".*", null, 100f, frameCount);
+        // Si 'auto', on génère une onde qui fait des allers-retours doux entre 0 et 100
+        float valToPass = isAutoValue
+            ? (50f + 50f * (float)Math.Sin(frameCount * 0.03))
+            : fixedValue;
+
+        // On passe valToPass, et on force transitionSpeed à 1.0f pour les tests bruts
+        effect.Apply(client, devices, ".*", null, null, valToPass, frameCount, 1.0f);
+
         frameCount++;
         Thread.Sleep(33);
       }

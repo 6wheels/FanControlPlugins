@@ -16,19 +16,35 @@ namespace FanControl.OpenRGB.Effects
       set => _blinkIntervalFrames = Math.Max(1, value);
     }
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
+    private int _maxBlinkIntervalFrames = 30;
+    private int _minBlinkIntervalFrames = 2;
+    public int MaxBlinkIntervalFrames
+    {
+      get => _maxBlinkIntervalFrames;
+      set => _maxBlinkIntervalFrames = Math.Min(30, value);
+    }
+    public int MinBlinkIntervalFrames
+    {
+      get => _minBlinkIntervalFrames;
+      set => _minBlinkIntervalFrames = Math.Max(1, value);
+    }
+
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
 
+      float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
+
       // The blinking loops indefinitely while the effect is active
-      bool isColor1 = (frameCount % (BlinkIntervalFrames * 2)) < BlinkIntervalFrames;
+      int currentInterval = (int)(MaxBlinkIntervalFrames - (MaxBlinkIntervalFrames - MinBlinkIntervalFrames) * ratio);
+      currentInterval = Math.Max(1, currentInterval);
 
+      bool isColor1 = (frameCount % (currentInterval * 2)) < currentInterval;
       Color targetColor = isColor1 ? c1 : c2;
+
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
-
-      ApplyToTargetLeds(device, zoneRegex, colors, targetColor, 1.0f);
-
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, targetColor, transitionSpeed);
       client.UpdateLeds(deviceIndex, colors);
     }
 

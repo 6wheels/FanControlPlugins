@@ -4,6 +4,7 @@ using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.OpenRGB.Rules;
 using FanControl.OpenRGB.Effects;
+using System.Diagnostics;
 
 namespace FanControl.OpenRGB
 {
@@ -21,6 +22,8 @@ namespace FanControl.OpenRGB
     private bool _isLocked = false;
     private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
+
+    private Stopwatch _startupStopwatch = new();
 
     public void Initialize()
     {
@@ -63,6 +66,12 @@ namespace FanControl.OpenRGB
         for (int i = 0; i < _devices.Length; i++)
         {
           Log($"Device [{i}] : '{_devices[i].Name}', Available Zones: {_devices[i].Zones})");
+        }
+
+        if (_config.Startup != null && _config.Startup.Effect != null)
+        {
+          _startupStopwatch.Start();
+          Log($"Startup animation started for {_config.Startup.DurationSeconds} seconds.", LogLevel.Info);
         }
 
         int interval = 1000 / _config.Framerate;
@@ -122,6 +131,21 @@ namespace FanControl.OpenRGB
 
       _frameCount++;
 
+      if (_config.Startup != null && _config.Startup.Effect != null)
+      {
+        if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
+        {
+          // Apply the startup effect with an arbitrary value of 100f and a Fade of 1.0f
+          _config.Startup.Effect.Apply(_client, _devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed);
+          return; // Stop the RenderLoop_Tick here, normal rules are not read
+        }
+        else if (_startupStopwatch.IsRunning)
+        {
+          _startupStopwatch.Stop();
+          Log("Startup animation completed. Switching to standard monitoring.", LogLevel.Info);
+        }
+      }
+
       // We log only 1 frame every 2 seconds (if 30 FPS)
       bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
 
@@ -139,18 +163,23 @@ namespace FanControl.OpenRGB
         {
           effectToApply = binding.Config.IdleEffect;
         }
+
         if (shouldLogThisFrame)
         {
           Log($"Card '{binding.Control.Name}' | Value: {val:F1} | Threshold: {binding.Config.ActivationThreshold} | Active Rule: {binding.Config.Name}", LogLevel.Debug);
         }
+
+        float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
 
         effectToApply?.Apply(
             _client,
             _devices,
             binding.Config.DeviceRegex,
             binding.Config.ZoneRegex,
+            binding.Config.LedRegex,
             val,
-            _frameCount
+            _frameCount,
+            speedToUse
         );
       }
     }

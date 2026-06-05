@@ -2,14 +2,13 @@ using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
-  public class ThermalGradientEffect : BaseRgbEffect
+  public class GradientEffect : BaseRgbEffect
   {
     // Public properties for JSON
     public string ColorMinHex { get; set; } = "#00FF00"; // Green by default
     public string ColorMaxHex { get; set; } = "#FF0000"; // Red by default
-    public float FadeSpeed { get; set; } = 0.1f;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
     {
       Color colorMin = ParseHex(ColorMinHex);
       Color colorMax = ParseHex(ColorMaxHex);
@@ -27,7 +26,7 @@ namespace FanControl.OpenRGB.Effects
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
       // Application with fade
-      ApplyToTargetLeds(device, zoneRegex, colors, targetColor, FadeSpeed);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, targetColor, transitionSpeed);
 
       client.UpdateLeds(deviceIndex, colors);
     }
