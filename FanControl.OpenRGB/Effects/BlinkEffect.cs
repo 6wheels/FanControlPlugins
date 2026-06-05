@@ -44,7 +44,7 @@ namespace FanControl.OpenRGB.Effects
       Color targetColor = isColor1 ? c1 : c2;
 
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, targetColor, transitionSpeed);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, targetColor, 1.0f); // No transition for blinking, we want an immediate switch
       client.UpdateLeds(deviceIndex, colors);
     }
 
