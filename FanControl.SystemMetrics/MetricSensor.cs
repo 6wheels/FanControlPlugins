@@ -9,7 +9,7 @@ namespace FanControl.SystemMetrics
     public string Name { get; }
     public float? Value { get; private set; }
 
-    // Ajout de readonly et utilisation de la syntaxe de collection C# 12
+    // Addition of readonly and use of C# 12 collection syntax
     private readonly PerformanceCounter[] _counters = [];
     private readonly PerformanceCounter? _singleCounter;
     private readonly bool _isGpu;
@@ -26,7 +26,7 @@ namespace FanControl.SystemMetrics
         {
           PerformanceCounterCategory cat = new(category);
 
-          // Ajout du StringComparison exigé par les linters
+          // Addition of StringComparison required by linters
           var instanceNames = cat.GetInstanceNames()
                                  .Where(x => x.EndsWith(instance, StringComparison.OrdinalIgnoreCase));
 
@@ -44,7 +44,7 @@ namespace FanControl.SystemMetrics
       }
       catch
       {
-        // Un compteur introuvable ne doit pas crasher le plugin au démarrage
+        // A missing counter should not crash the plugin at startup
       }
     }
 
@@ -68,7 +68,7 @@ namespace FanControl.SystemMetrics
       }
       catch
       {
-        Value = 0f; // Valeur de repli sécurisée
+        Value = 0f; // Secure fallback value
       }
     }
   }

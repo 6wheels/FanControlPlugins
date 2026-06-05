@@ -9,7 +9,7 @@ namespace FanControl.OpenRGB.Effects
 
     private int _blinkIntervalFrames = 15;
 
-    // Garde-fou : On empêche de descendre en dessous de 1 frame, sinon division par zéro ou freeze
+    // Safeguard: We prevent going below 1 frame, otherwise division by zero or freeze
     public int BlinkIntervalFrames
     {
       get => _blinkIntervalFrames;
@@ -21,7 +21,7 @@ namespace FanControl.OpenRGB.Effects
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
 
-      // Le clignotement tourne en boucle indéfiniment tant que l'effet est actif
+      // The blinking loops indefinitely while the effect is active
       bool isColor1 = (frameCount % (BlinkIntervalFrames * 2)) < BlinkIntervalFrames;
 
       Color targetColor = isColor1 ? c1 : c2;

@@ -58,7 +58,7 @@ namespace FanControl.OpenRGB
         _client.Connect();
         _devices = _client.GetAllControllerData();
 
-        // LOG 1 : INVENTAIRE DES PÉRIPHÉRIQUES
+        // LOG 1: DEVICE INVENTORY
         Log($"Connected. {_devices.Length} detected devices:");
         for (int i = 0; i < _devices.Length; i++)
         {
@@ -70,7 +70,7 @@ namespace FanControl.OpenRGB
       }
       catch (Exception ex)
       {
-        Log($"Connexion failed: {ex.Message}", LogLevel.Error);
+        Log($"Connection failed: {ex.Message}", LogLevel.Error);
       }
     }
 
@@ -86,7 +86,7 @@ namespace FanControl.OpenRGB
 
         var controlSensor = new OpenRgbControlSensor(safeId, ruleConf.Name);
 
-        // Beaucoup plus propre : on passe juste l'objet config et le capteur
+        // Much cleaner: we just pass the config object and the sensor
         var binding = new RuleBinding(ruleConf, controlSensor);
 
         _bindings.Add(binding);
@@ -98,7 +98,7 @@ namespace FanControl.OpenRGB
 
     private void RenderLoop_Tick(object? state)
     {
-      // --- GESTION DU VERROUILLAGE (DEV TOOLKIT) ---
+      // --- LOCK MANAGEMENT (DEV TOOLKIT) ---
       bool lockExists = File.Exists(_lockFilePath);
 
       if (lockExists)
@@ -106,23 +106,23 @@ namespace FanControl.OpenRGB
         if (!_isLocked)
         {
           _isLocked = true;
-          Log("Dev Toolkit détecté (Lock file). Mise en pause du plugin...", LogLevel.Warning);
+          Log("Dev Toolkit detected (Lock file). Plugin is paused...", LogLevel.Warning);
         }
-        return; // On annule totalement l'exécution de cette frame
+        return; // We completely cancel the execution of this frame
       }
       else if (_isLocked)
       {
         _isLocked = false;
-        Log("Dev Toolkit fermé. Reprise du contrôle RGB par FanControl.", LogLevel.Info);
+        Log("Dev Toolkit closed. RGB control resumed by FanControl.", LogLevel.Info);
       }
       // ---------------------------------------------
 
-      // On s'assure qu'on est bien connecté avant de continuer
+      // We ensure we are properly connected before continuing
       if (_client == null || !_client.Connected) return;
 
       _frameCount++;
 
-      // On logue seulement 1 frame toutes les 2 secondes (si 30 FPS)
+      // We log only 1 frame every 2 seconds (if 30 FPS)
       bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
 
       foreach (var binding in _bindings)
@@ -157,14 +157,14 @@ namespace FanControl.OpenRGB
 
     private void Log(string message, LogLevel level = LogLevel.Info)
     {
-      // On n'écrit dans le log de FanControl que si le niveau du message 
-      // est supérieur ou égal au niveau demandé dans la config.
+      // We write to the FanControl log only if the message level is greater than or equal 
+      // to the level requested in the config.
       if (level >= _config.LogLevel)
       {
-        // On ajoute un préfixe visuel si c'est une erreur ou un debug
+        // We add a visual prefix if it is an error or debug
         string prefix = $"[{level.ToString().ToUpper()}]";
 
-        // 'logger' vient du constructeur primaire de ta classe
+        // 'logger' comes from the primary constructor of your class
         logger.Log($"[OpenRGB] {prefix} {message}");
       }
     }

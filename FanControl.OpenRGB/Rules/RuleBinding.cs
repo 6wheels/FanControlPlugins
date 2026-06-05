@@ -2,10 +2,10 @@ namespace FanControl.OpenRGB.Rules
 {
   public class RuleBinding(RuleConfig config, OpenRgbControlSensor control)
   {
-    // La configuration statique (issue du JSON)
+    // The static configuration (from JSON)
     public RuleConfig Config { get; } = config;
 
-    // Le capteur dynamique (qui vit dans l'UI de FanControl)
+    // The dynamic sensor (which lives in FanControl's UI)
     public OpenRgbControlSensor Control { get; } = control;
   }
 }

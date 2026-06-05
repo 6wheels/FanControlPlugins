@@ -18,7 +18,7 @@ namespace FanControl.Mqtt
     {
       if (!File.Exists(_configPath))
       {
-        dialog.ShowMessageDialog($"Configuration manquante. Créer {_configPath}.");
+        dialog.ShowMessageDialog($"Missing configuration. Create {_configPath}.");
         return;
       }
       _config = JsonSerializer.Deserialize<MqttConfig>(File.ReadAllText(_configPath));
@@ -37,12 +37,12 @@ namespace FanControl.Mqtt
           .WithCredentials(_config.Username, _config.Password)
           .Build();
 
-      // Gestion de la réception (lecture des topics HA)
+      // Reception handling (reading HA topics)
       _mqttClient.ApplicationMessageReceivedAsync += e =>
       {
         string topic = e.ApplicationMessage.Topic;
 
-        // On convertit la séquence en tableau, puis en string
+        // We convert the sequence to array, then to string
         string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload.ToArray());
 
         logger.Log($"MQTT Rx: {topic} -> {payload}");
@@ -53,7 +53,7 @@ namespace FanControl.Mqtt
 
       await _mqttClient.ConnectAsync(options, CancellationToken.None);
 
-      // Souscription aux topics listés dans le config
+      // Subscription to topics listed in the config
       foreach (var topic in _config.SubscribedTopics)
       {
         await _mqttClient.SubscribeAsync(topic);
@@ -62,7 +62,7 @@ namespace FanControl.Mqtt
 
     public void Load(IPluginSensorsContainer container)
     {
-      // Auto-Discovery : Publication différée après connexion
+      // Auto-Discovery: Delayed publication after connection
       Task.Run(async () =>
       {
         while (_mqttClient == null || !_mqttClient.IsConnected) await Task.Delay(1000);
@@ -84,13 +84,13 @@ namespace FanControl.Mqtt
           await _mqttClient.PublishAsync(new MqttApplicationMessageBuilder()
               .WithTopic(configTopic)
               .WithPayload(json)
-              .WithRetainFlag() // CRUCIAL pour HA
+              .WithRetainFlag() // CRUCIAL for HA
               .Build());
         }
       });
     }
 
-    // Appel cette méthode régulièrement (ex: via un Timer ou dans ta boucle de rendu)
+    // Call this method regularly (e.g.: via a Timer or in your render loop)
     public async Task PublishSensorValue(IPluginSensor sensor)
     {
       if (_mqttClient == null || !_mqttClient.IsConnected) return;

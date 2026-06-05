@@ -5,12 +5,12 @@ namespace FanControl.OpenRGB.Effects
 {
 
   // EFFECT 5: The "Crazy" Bouncing Ball & Confetti Explosion
-  // 1. La classe d'origine (Bien vérifier qu'elle hérite de BaseRgbRule)
+  // 1. The original class (Make sure it inherits from BaseRgbRule)
   public class BouncingExplosionEffect : BaseRgbEffect
   {
     public string BgColorHex { get; set; } = "#000000";
     public string DotColorHex { get; set; } = "#FF00FF";
-    public int SpeedDivisor { get; set; } = 2; // Plus le chiffre est grand, plus c'est lent
+    public int SpeedDivisor { get; set; } = 2; // The larger the number, the slower it is
 
     protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
     {
@@ -23,7 +23,7 @@ namespace FanControl.OpenRGB.Effects
       {
         if ((string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex)) && zone.LedCount > 0)
         {
-          // Formule mathématique pour calculer l'index du point qui fait l'aller-retour
+          // Mathematical formula to calculate the index of the back-and-forth point
           int cycleLength = (int)zone.LedCount * 2 - 2;
           if (cycleLength <= 0) cycleLength = 1;
 
@@ -42,7 +42,7 @@ namespace FanControl.OpenRGB.Effects
     }
 
     private static Color ParseHex(string hex)
-    { /* Pareil */
+    { /* Same */
       hex = hex.Replace("#", "");
       if (hex.Length != 6) return new Color(255, 255, 255);
       return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));

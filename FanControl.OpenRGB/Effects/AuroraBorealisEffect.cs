@@ -21,17 +21,17 @@ namespace FanControl.OpenRGB.Effects
     public float Speed
     {
       get => _speed;
-      set => _speed = Math.Clamp(value, 0.001f, 2.0f); // Bloqué entre très lent et très rapide
+      set => _speed = Math.Clamp(value, 0.001f, 2.0f); // Locked between very slow and very fast
     }
 
     private float _scale = 0.3f;
     public float Scale
     {
       get => _scale;
-      set => _scale = Math.Clamp(value, 0.01f, 5.0f); // Empêche un scale de 0 qui écraserait la vague
+      set => _scale = Math.Clamp(value, 0.01f, 5.0f); // Prevents a scale of 0 that would crush the wave
     }
 
-    // NOUVEAU : Choix de la direction de l'onde ("Horizontal" ou "Vertical")
+    // NEW: Choice of wave direction ("Horizontal" or "Vertical")
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
     protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
@@ -61,7 +61,7 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < colors.Length)
                 {
-                  // On passe isVertical à la méthode de calcul
+                  // We pass isVertical to the calculation method
                   colors[ledOffset + ledIndex] = CalculateAuroraColor(x, y, time, c1, c2, c3, isVertical);
                 }
               }
@@ -84,7 +84,7 @@ namespace FanControl.OpenRGB.Effects
     {
       double mainWave, secondaryWave;
 
-      // Inversion des axes selon la direction choisie
+      // Axes inversion according to the chosen direction
       if (isVertical)
       {
         mainWave = Math.Sin(y * Scale + time);

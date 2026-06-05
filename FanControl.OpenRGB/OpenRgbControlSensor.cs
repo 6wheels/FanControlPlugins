@@ -8,11 +8,11 @@ namespace FanControl.OpenRGB
     public string Name { get; } = name;
     public float? Value { get; private set; } = 0f;
 
-    // FanControl appelle cette méthode pour donner la valeur (soit via le slider manuel, soit via une courbe)
+    // FanControl calls this method to give the value (either via the manual slider or via a curve)
     public void Set(float val) => Value = val;
 
     public void Reset() => Value = 0f;
 
-    public void Update() { } // Pas besoin d'update, FanControl pousse la valeur via Set()
+    public void Update() { } // No need for update, FanControl pushes the value via Set()
   }
 }

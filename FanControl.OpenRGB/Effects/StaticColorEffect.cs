@@ -7,13 +7,13 @@ namespace FanControl.OpenRGB.Effects
     public string ColorHex { get; set; } = "#FFFFFF";
     public float FadeSpeed { get; set; } = 0.05f;
 
-    // L'override a maintenant exactement les 6 mêmes paramètres que la base
+    // The override now has exactly the same 6 parameters as the base
     protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
     {
       Color targetColor = ParseHex(ColorHex);
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
-      // L'appel prend bien ses 5 paramètres
+      // The call takes exactly its 5 parameters
       ApplyToTargetLeds(device, zoneRegex, colors, targetColor, FadeSpeed);
 
       client.UpdateLeds(deviceIndex, colors);

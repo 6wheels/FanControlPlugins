@@ -31,10 +31,10 @@ namespace FanControl.OpenRGB.Effects
       }
     }
 
-    // Signature abstraite stricte : 6 paramètres
+    // Strict abstract signature: 6 parameters
     protected abstract void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount);
 
-    // Signature utilitaire stricte : 5 paramètres
+    // Strict utility signature: 5 parameters
     protected static void ApplyToTargetLeds(Device device, string? zoneRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
     {
       static Color LerpColor(Color current, Color target, float speed)
