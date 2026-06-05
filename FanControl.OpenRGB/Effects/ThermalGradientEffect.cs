@@ -4,9 +4,9 @@ namespace FanControl.OpenRGB.Effects
 {
   public class ThermalGradientEffect : BaseRgbEffect
   {
-    // Propriétés publiques pour le JSON
-    public string ColorMinHex { get; set; } = "#00FF00"; // Vert par défaut
-    public string ColorMaxHex { get; set; } = "#FF0000"; // Rouge par défaut
+    // Public properties for JSON
+    public string ColorMinHex { get; set; } = "#00FF00"; // Green by default
+    public string ColorMaxHex { get; set; } = "#FF0000"; // Red by default
     public float FadeSpeed { get; set; } = 0.1f;
 
     protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, float value, int frameCount)
@@ -14,10 +14,10 @@ namespace FanControl.OpenRGB.Effects
       Color colorMin = ParseHex(ColorMinHex);
       Color colorMax = ParseHex(ColorMaxHex);
 
-      // Calcul du ratio de température (0.0 à 1.0)
+      // Calculation of temperature ratio (0.0 to 1.0)
       float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
 
-      // Calcul de la couleur cible
+      // Calculation of target color
       byte r = (byte)(colorMin.R + (colorMax.R - colorMin.R) * ratio);
       byte g = (byte)(colorMin.G + (colorMax.G - colorMin.G) * ratio);
       byte b = (byte)(colorMin.B + (colorMax.B - colorMin.B) * ratio);
@@ -26,7 +26,7 @@ namespace FanControl.OpenRGB.Effects
 
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
-      // Application avec le fondu
+      // Application with fade
       ApplyToTargetLeds(device, zoneRegex, colors, targetColor, FadeSpeed);
 
       client.UpdateLeds(deviceIndex, colors);

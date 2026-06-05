@@ -7,7 +7,7 @@ namespace FanControl.OpenRGB
 {
   class Program
   {
-    // Chemin du fichier de verrouillage partagé avec le plugin
+    // Path of the lock file shared with the plugin
     private static string LockFilePath => Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
 
     static void Main(string[] args)
@@ -17,52 +17,52 @@ namespace FanControl.OpenRGB
       Console.WriteLine("⚙️  OPENRGB PLUGIN - DEV TOOLKIT");
       Console.WriteLine("===========================================\n");
 
-      // 1. Création du fichier Lock pour dire au plugin FanControl de se mettre en pause
+      // 1. Create the Lock file to tell the FanControl plugin to pause
       try { File.Create(LockFilePath).Dispose(); } catch { }
-      Console.WriteLine("🔒 Lock file créé. FanControl est en pause.");
+      Console.WriteLine("🔒 Lock file created. FanControl is paused.");
 
       OpenRgbClient? client = null;
 
       try
       {
         string ip = "127.0.0.1";
-        int port = 6742; // Port par défaut du Daemon OpenRGB
+        int port = 6742; // Default port of OpenRGB Daemon
         bool isConnected = false;
 
-        // --- BOUCLE DE CONNEXION ---
+        // --- CONNECTION LOOP ---
         while (!isConnected)
         {
           try
           {
-            Console.WriteLine($"\nTentative de connexion à {ip}:{port}...");
+            Console.WriteLine($"\nAttempting connection to {ip}:{port}...");
             client = new OpenRgbClient(name: "Console Toolkit", ip: ip, port: port);
             client.Connect();
             isConnected = true;
-            Console.WriteLine("✅ Connecté au serveur OpenRGB.");
+            Console.WriteLine("✅ Connected to OpenRGB server.");
 
-            // FEEDBACK VISUEL : Tout le setup passe en Bleu Nuit (R:0, G:50, B:150)
+            // VISUAL FEEDBACK: All setup turns Navy Blue (R:0, G:50, B:150)
             SetAllHardwareColor(client, new Color(0, 50, 150));
-            Console.WriteLine("💡 Contrôle matériel confirmé (Setup éclairé en Bleu).");
+            Console.WriteLine("💡 Hardware control confirmed (Setup lit in Blue).");
 
-            Thread.Sleep(1000); // Petite pause pour la lisibilité avant d'afficher le menu
+            Thread.Sleep(1000); // Small pause for readability before displaying the menu
           }
           catch (Exception ex)
           {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Échec de la connexion : {ex.Message}");
+            Console.WriteLine($"❌ Connection failed: {ex.Message}");
             Console.ResetColor();
 
-            Console.WriteLine("\nVoulez-vous essayer un autre port ? (O/N) - [ECHAP] pour quitter.");
+            Console.WriteLine("\nDo you want to try another port? (Y/N) - [ESC] to exit.");
             var key = Console.ReadKey(true);
 
             if (key.Key == ConsoleKey.Escape || char.ToUpper(key.KeyChar) == 'N')
             {
-              return; // Quitte le Main() et passe directement dans le bloc finally
+              return; // Exit Main() and go directly to the finally block
             }
-            else if (char.ToUpper(key.KeyChar) == 'O')
+            else if (char.ToUpper(key.KeyChar) == 'Y')
             {
               Console.WriteLine("\n");
-              Console.Write("Entrez le port (ex: 6742, 6789) : ");
+              Console.Write("Enter the port (ex: 6742, 6789): ");
               string? inputPort = Console.ReadLine();
               if (int.TryParse(inputPort, out int newPort))
               {
@@ -70,13 +70,13 @@ namespace FanControl.OpenRGB
               }
               else
               {
-                Console.WriteLine("Port invalide, nouvel essai avec le port " + port);
+                Console.WriteLine("Invalid port, retrying with port " + port);
               }
             }
           }
         }
 
-        // --- MENU PRINCIPAL ---
+        // --- MAIN MENU ---
         bool isRunning = true;
         while (isRunning)
         {
@@ -109,16 +109,16 @@ namespace FanControl.OpenRGB
       }
       finally
       {
-        // On s'assure de couper le bleu de debug (ou de tout éteindre) avant de rendre la main
+        // We make sure to turn off the debug blue (or turn everything off) before returning control
         if (client != null && client.Connected)
         {
-          SetAllHardwareColor(client, new Color(0, 0, 0)); // Noir (Éteint)
+          SetAllHardwareColor(client, new Color(0, 0, 0)); // Black (Off)
           client.Dispose();
         }
 
-        // Suppression garantie du fichier Lock à la sortie
+        // Guaranteed deletion of Lock file on exit
         if (File.Exists(LockFilePath)) File.Delete(LockFilePath);
-        Console.WriteLine("\n🔓 Lock file supprimé. FanControl reprend la main.");
+        Console.WriteLine("\n🔓 Lock file deleted. FanControl resumes control.");
       }
     }
 
@@ -133,7 +133,7 @@ namespace FanControl.OpenRGB
       {
         var device = devices[i];
 
-        // --- 1. INFOS DU PÉRIPHÉRIQUE ---
+        // --- 1. DEVICE INFO ---
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"[{i}] DEVICE: {device.Name}");
         Console.ResetColor();
@@ -145,7 +145,7 @@ namespace FanControl.OpenRGB
         Console.WriteLine($"    Location    : {device.Location}");
         Console.WriteLine($"    Total LEDs  : {device.Leds.Length}");
 
-        // --- 2. MODES DISPONIBLES ---
+        // --- 2. AVAILABLE MODES ---
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.WriteLine($"\n    ▶ MODES ({device.Modes.Length}):");
         Console.ResetColor();
@@ -157,12 +157,12 @@ namespace FanControl.OpenRGB
           Console.WriteLine($"      {activeTag} [{m}] {mode.Name,-20} (Speed: {mode.SpeedMin}-{mode.SpeedMax}, Flags: {mode.Flags})");
         }
 
-        // --- 3. ZONES ET LEDS ---
+        // --- 3. ZONES AND LEDS ---
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"\n    ▶ ZONES ({device.Zones.Length}):");
         Console.ResetColor();
 
-        int ledGlobalOffset = 0; // Sert à faire la correspondance entre les LEDs de la zone et le tableau global
+        int ledGlobalOffset = 0; // Used to make the correspondence between zone LEDs and the global array
 
         for (int z = 0; z < device.Zones.Length; z++)
         {
@@ -173,15 +173,15 @@ namespace FanControl.OpenRGB
 
           Console.WriteLine($"        Type: {zone.Type} | Nb LEDs: {zone.LedCount}");
 
-          // Si la zone est une matrice (ex: Clavier), on affiche ses dimensions
+          // If the zone is a matrix (e.g.: Keyboard), we display its dimensions
           if (zone.MatrixMap != null)
           {
             Console.WriteLine($"        Matrix Map: {zone.MatrixMap.Width}x{zone.MatrixMap.Height}");
           }
 
-          // Détail des LEDs de cette zone
+          // Details of LEDs in this zone
           Console.ForegroundColor = ConsoleColor.DarkGray;
-          Console.WriteLine("        Détail des LEDs :");
+          Console.WriteLine("        LED Details :");
           for (int l = 0; l < zone.LedCount; l++)
           {
             if (ledGlobalOffset < device.Leds.Length)
@@ -189,7 +189,7 @@ namespace FanControl.OpenRGB
               var led = device.Leds[ledGlobalOffset];
               var color = device.Colors[ledGlobalOffset];
 
-              // On affiche l'index global, le nom de la LED, et sa couleur actuelle
+              // We display the global index, the LED name, and its current color
               Console.WriteLine($"          [{ledGlobalOffset,3}] {led.Name,-25} -> RGB({color.R,3}, {color.G,3}, {color.B,3})");
 
               ledGlobalOffset++;
@@ -215,15 +215,15 @@ namespace FanControl.OpenRGB
 
       try
       {
-        // Tente de charger tous les types
+        // Attempts to load all types
         effectTypes = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
             .ToList();
       }
       catch (ReflectionTypeLoadException ex)
       {
-        // Si la DLL FanControl manque (ce qui est normal en mode Console), 
-        // on récupère uniquement les classes qui ont réussi à se charger (nos Effets).
+        // If the FanControl DLL is missing (which is normal in Console mode),
+        // we retrieve only the classes that managed to load (our Effects).
         effectTypes = ex.Types
             .Where(t => t != null && t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
             .Cast<Type>()
@@ -231,21 +231,21 @@ namespace FanControl.OpenRGB
       }
 
       Console.WriteLine("===========================================");
-      Console.WriteLine("🧪 TESTEUR D'EFFETS (INTROSPECTION)");
+      Console.WriteLine("🧪 EFFECTS TESTER (INTROSPECTION)");
       Console.WriteLine("===========================================\n");
 
-      // ... (Le reste de ta méthode reste exactement identique)
+      // ... (The rest of your method remains exactly the same)
       for (int i = 0; i < effectTypes.Count; i++)
       {
         Console.WriteLine($"[{i}] {effectTypes[i].Name}");
       }
-      Console.WriteLine($"\n[ESC] Retour au menu principal");
+      Console.WriteLine($"\n[ESC] Return to main menu");
       Console.WriteLine("===========================================");
 
       var input = Console.ReadKey(true);
       if (input.Key == ConsoleKey.Escape) return;
 
-      // Si l'utilisateur tape un chiffre correspondant à un effet
+      // If the user types a digit corresponding to an effect
       if (int.TryParse(input.KeyChar.ToString(), out int index) && index >= 0 && index < effectTypes.Count)
       {
         RunEffectTest(client, effectTypes[index]);
@@ -255,18 +255,18 @@ namespace FanControl.OpenRGB
     private static void RunEffectTest(OpenRgbClient client, Type effectType)
     {
       Console.Clear();
-      Console.WriteLine($"=== CONFIGURATION DE : {effectType.Name} ===\n");
+      Console.WriteLine($"=== CONFIGURATION OF: {effectType.Name} ===\n");
 
-      // On instancie la classe dynamiquement
+      // We instantiate the class dynamically
       var effect = (BaseRgbEffect)Activator.CreateInstance(effectType)!;
 
-      // INTROSPECTION : On récupère uniquement les propriétés spécifiques à cet effet (DeclaredOnly)
+      // INTROSPECTION: We retrieve only the properties specific to this effect (DeclaredOnly)
       var properties = effectType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 
       foreach (var prop in properties)
       {
         object? defaultValue = prop.GetValue(effect);
-        Console.Write($"- {prop.Name} ({prop.PropertyType.Name}) [Défaut: {defaultValue}] : ");
+        Console.Write($"- {prop.Name} ({prop.PropertyType.Name}) [Default: {defaultValue}] : ");
 
         string? userInput = Console.ReadLine();
         if (!string.IsNullOrWhiteSpace(userInput))
@@ -276,12 +276,12 @@ namespace FanControl.OpenRGB
             object convertedValue;
             if (prop.PropertyType.IsEnum)
             {
-              // Gère les enums comme AuroraDirection
+              // Handles enums like AuroraDirection
               convertedValue = Enum.Parse(prop.PropertyType, userInput, true);
             }
             else
             {
-              // Gère les floats de manière robuste (accepte point ou virgule)
+              // Handles floats robustly (accepts period or comma)
               string safeInput = userInput.Replace(",", ".");
               convertedValue = Convert.ChangeType(safeInput, prop.PropertyType, CultureInfo.InvariantCulture);
             }
@@ -290,18 +290,18 @@ namespace FanControl.OpenRGB
           catch
           {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  -> Saisie invalide. Conservation de la valeur par défaut : {defaultValue}");
+            Console.WriteLine($"  -> Invalid input. Keeping the default value: {defaultValue}");
             Console.ResetColor();
           }
         }
       }
 
-      Console.WriteLine("\n▶ Lancement de la boucle de rendu... Appuyez sur une touche pour arrêter.");
+      Console.WriteLine("\n▶ Starting render loop... Press any key to stop.");
 
       var devices = client.GetAllControllerData();
       int frameCount = 0;
 
-      // Boucle non-bloquante pour jouer l'animation à ~30 FPS
+      // Non-blocking loop to play animation at ~30 FPS
       while (!Console.KeyAvailable)
       {
         effect.Apply(client, devices, ".*", null, 100f, frameCount);
@@ -309,7 +309,7 @@ namespace FanControl.OpenRGB
         Thread.Sleep(33);
       }
 
-      Console.ReadKey(true); // Consomme la touche pressée pour nettoyer le buffer
+      Console.ReadKey(true); // Consumes the key pressed to clean the buffer
     }
 
     private static void SetAllHardwareColor(OpenRgbClient client, global::OpenRGB.NET.Color color)
@@ -319,7 +319,7 @@ namespace FanControl.OpenRGB
         var devices = client.GetAllControllerData();
         for (int i = 0; i < devices.Length; i++)
         {
-          // On remplit un tableau avec la couleur demandée pour chaque LED du périphérique
+          // We fill an array with the requested color for each LED of the device
           var colors = Enumerable.Repeat(color, devices[i].Leds.Length).ToArray();
           client.UpdateLeds(i, colors);
         }

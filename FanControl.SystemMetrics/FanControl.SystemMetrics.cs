@@ -11,7 +11,7 @@ namespace FanControl.SystemMetrics
 
     public void Load(IPluginSensorsContainer container)
     {
-      // Utilisation du target-typed new
+      // Use of target-typed new
       MetricSensor cpuLoad = new(
           "SYS_CPU_LOAD",
           "CPU Total Load (%)",
@@ -31,7 +31,7 @@ namespace FanControl.SystemMetrics
           "PhysicalDisk", "% Disk Time", "_Total"
       );
 
-      // Injection dans le pool des températures pour contourner le filtre UI
+      // Injection into the temperature pool to bypass the UI filter
       container.TempSensors.Add(cpuLoad);
       container.TempSensors.Add(gpuLoad);
       container.TempSensors.Add(diskActivity);

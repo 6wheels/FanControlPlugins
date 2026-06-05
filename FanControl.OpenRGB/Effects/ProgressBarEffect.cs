@@ -3,7 +3,7 @@ using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
-  // EFFECT 4: Jauge de remplissage linéaire (Barre de progression)
+  // EFFECT 4: Linear filling gauge (Progress bar)
   public class ProgressBarEffect : BaseRgbEffect
   {
     public string EmptyColorHex { get; set; } = "#000000";
@@ -20,7 +20,7 @@ namespace FanControl.OpenRGB.Effects
 
       foreach (var zone in device.Zones)
       {
-        // On vérifie si la zone correspond à notre ciblage
+        // We check if the zone matches our targeting
         if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
         {
           int fillCount = (int)(ratio * zone.LedCount);
@@ -36,7 +36,7 @@ namespace FanControl.OpenRGB.Effects
     }
 
     private static Color ParseHex(string hex)
-    { /* Pareil */
+    { /* Same */
       hex = hex.Replace("#", "");
       if (hex.Length != 6) return new Color(255, 255, 255);
       return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
