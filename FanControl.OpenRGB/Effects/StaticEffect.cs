@@ -10,12 +10,12 @@ namespace FanControl.OpenRGB.Effects
     protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
     {
       Color baseColor = ParseHex(ColorHex);
-      float intensity = Math.Clamp(value / 100f, 0.0f, 1.0f);
+      float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
       Color targetColor = new(
-                (byte)(baseColor.R * intensity),
-                (byte)(baseColor.G * intensity),
-                (byte)(baseColor.B * intensity)
-            );
+                     (byte)(baseColor.R * intensity),
+                     (byte)(baseColor.G * intensity),
+                     (byte)(baseColor.B * intensity)
+                 );
 
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
       // The call takes exactly its 5 parameters

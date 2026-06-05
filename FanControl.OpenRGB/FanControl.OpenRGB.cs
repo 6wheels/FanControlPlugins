@@ -152,24 +152,31 @@ namespace FanControl.OpenRGB
       foreach (var binding in _bindings)
       {
         float val = binding.Control.Value ?? 0f;
-
         BaseRgbEffect? effectToApply = null;
+        float valueToPass = val;
 
         if (val >= binding.Config.ActivationThreshold)
         {
           effectToApply = binding.Config.ActiveEffect;
+
+          // Interpolation for the active effect (Range : Threshold -> 100)
+          float range = 100f - binding.Config.ActivationThreshold;
+          valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
         }
         else if (binding.Config.IdleEffect != null)
         {
           effectToApply = binding.Config.IdleEffect;
-        }
 
-        if (shouldLogThisFrame)
-        {
-          Log($"Card '{binding.Control.Name}' | Value: {val:F1} | Threshold: {binding.Config.ActivationThreshold} | Active Rule: {binding.Config.Name}", LogLevel.Debug);
+          // Interpolation for the idle effect (Range : 0 -> Threshold)
+          valueToPass = binding.Config.ActivationThreshold > 0 ? Math.Clamp((val / binding.Config.ActivationThreshold) * 100f, 0f, 100f) : 0f;
         }
 
         float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
+
+        if (shouldLogThisFrame)
+        {
+          Log($"Card '{binding.Control.Name}' | Val: {val:F1} (Interpolated: {valueToPass:F1}) | Threshold: {binding.Config.ActivationThreshold} | Rule: {binding.Config.Name}", LogLevel.Debug);
+        }
 
         effectToApply?.Apply(
             _client,
@@ -177,7 +184,7 @@ namespace FanControl.OpenRGB
             binding.Config.DeviceRegex,
             binding.Config.ZoneRegex,
             binding.Config.LedRegex,
-            val,
+            valueToPass,
             _frameCount,
             speedToUse
         );

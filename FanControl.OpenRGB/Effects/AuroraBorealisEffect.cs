@@ -45,7 +45,7 @@ namespace FanControl.OpenRGB.Effects
       bool isVertical = Direction == AuroraDirection.Vertical;
 
       // Compute the dynamic intensity (0.0 to 1.0) based on the FanControl sensor
-      float intensity = Math.Clamp(value / 100f, 0.0f, 1.0f);
+      float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)

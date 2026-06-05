@@ -34,7 +34,7 @@ namespace FanControl.OpenRGB.Effects
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
 
-      float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
+      float ratio = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
 
       // The blinking loops indefinitely while the effect is active
       int currentInterval = (int)(MaxBlinkIntervalFrames - (MaxBlinkIntervalFrames - MinBlinkIntervalFrames) * ratio);

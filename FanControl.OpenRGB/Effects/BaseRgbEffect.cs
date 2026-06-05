@@ -12,6 +12,8 @@ namespace FanControl.OpenRGB.Effects
   [JsonDerivedType(typeof(AuroraEffect), "Aurora")]
   public abstract class BaseRgbEffect
   {
+    public bool ModulateByValue { get; set; } = true;
+
     [JsonIgnore]
     public bool IsFinished { get; protected set; } = false;
 

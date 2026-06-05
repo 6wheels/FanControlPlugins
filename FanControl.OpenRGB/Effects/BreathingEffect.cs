@@ -17,7 +17,8 @@ namespace FanControl.OpenRGB.Effects
       Color peakCol = ParseHex(PeakColorHex);
 
       // The higher the value (load), the faster it breathes
-      float currentSpeed = MinSpeed + (Math.Clamp(value, 0f, 100f) / 100f) * (MaxSpeed - MinSpeed);
+      float ratio = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
+      float currentSpeed = MinSpeed + ratio * (MaxSpeed - MinSpeed);
 
       // Calculation of a sinusoidal wave (between 0.0 and 1.0)
       double sine = (Math.Sin(frameCount * currentSpeed) + 1.0) / 2.0;
