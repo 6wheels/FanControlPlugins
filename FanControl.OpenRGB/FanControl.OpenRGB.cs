@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.OpenRGB.Rules;
+using FanControl.OpenRGB.Effects;
 
 namespace FanControl.OpenRGB
 {
@@ -30,7 +31,13 @@ namespace FanControl.OpenRGB
           var options = new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
           string json = File.ReadAllText(_configPath);
           _config = JsonSerializer.Deserialize<OpenRgbConfig>(json, options) ?? new OpenRgbConfig();
+
           Log($"Configuration loaded. {_config.Rules.Count} rule(s) found.", LogLevel.Info);
+
+          string parsedConfigJson = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
+          Log($"Parsed configuration dump:\n{parsedConfigJson}", LogLevel.Debug);
+          // -------------------------------------------------
+          Log($"Server IP: {_config.ServerIp}, Port: {_config.ServerPort}, Framerate: {_config.Framerate} FPS, LogLevel: {_config.LogLevel}", LogLevel.Debug);
         }
         catch (Exception ex)
         {
@@ -79,20 +86,11 @@ namespace FanControl.OpenRGB
 
         var controlSensor = new OpenRgbControlSensor(safeId, ruleConf.Name);
 
-        var binding = new RuleBinding
-        {
-          DeviceRegex = ruleConf.DeviceRegex,
-          ZoneRegex = ruleConf.ZoneRegex,
-          Control = controlSensor,
-          ActivationThreshold = ruleConf.ActivationThreshold,
-          MainRule = ruleConf.MainRule,
-          IdleRule = ruleConf.IdleRule
-        };
+        // Beaucoup plus propre : on passe juste l'objet config et le capteur
+        var binding = new RuleBinding(ruleConf, controlSensor);
 
         _bindings.Add(binding);
         container.ControlSensors.Add(controlSensor);
-
-        // LOG 2 : VÉRIFICATION DES REGEX AU DÉMARRAGE
         int matchCount = _devices.Count(d => Regex.IsMatch(d.Name ?? "", ruleConf.DeviceRegex));
         Log($"Card '{ruleConf.Name}' created. Regex '{ruleConf.DeviceRegex}' matches {matchCount} device(s).", LogLevel.Info);
       }
@@ -131,27 +129,29 @@ namespace FanControl.OpenRGB
       {
         float val = binding.Control.Value ?? 0f;
 
-        BaseRgbRule? ruleToApply = null;
-        string activeRuleName = "";
+        BaseRgbEffect? effectToApply = null;
 
-        if (val >= binding.ActivationThreshold)
+        if (val >= binding.Config.ActivationThreshold)
         {
-          ruleToApply = binding.MainRule;
-          activeRuleName = "MainRule";
+          effectToApply = binding.Config.ActiveEffect;
         }
-        else if (binding.IdleRule != null)
+        else if (binding.Config.IdleEffect != null)
         {
-          ruleToApply = binding.IdleRule;
-          activeRuleName = "IdleRule";
+          effectToApply = binding.Config.IdleEffect;
         }
-
-        // LOG 3 : ÉTAT EN TEMPS RÉEL (Cadencé)
         if (shouldLogThisFrame)
         {
-          Log($"Card '{binding.Control.Name}' | Value: {val:F1} | Threshold: {binding.ActivationThreshold} | Active Rule: {activeRuleName}", LogLevel.Debug);
+          Log($"Card '{binding.Control.Name}' | Value: {val:F1} | Threshold: {binding.Config.ActivationThreshold} | Active Rule: {binding.Config.Name}", LogLevel.Debug);
         }
 
-        ruleToApply?.Apply(_client, _devices, binding.DeviceRegex, binding.ZoneRegex, val, _frameCount);
+        effectToApply?.Apply(
+            _client,
+            _devices,
+            binding.Config.DeviceRegex,
+            binding.Config.ZoneRegex,
+            val,
+            _frameCount
+        );
       }
     }
 
@@ -162,10 +162,10 @@ namespace FanControl.OpenRGB
       if (level >= _config.LogLevel)
       {
         // On ajoute un préfixe visuel si c'est une erreur ou un debug
-        string prefix = level == LogLevel.Info ? "" : $"[{level.ToString().ToUpper()}] ";
+        string prefix = $"[{level.ToString().ToUpper()}]";
 
         // 'logger' vient du constructeur primaire de ta classe
-        logger.Log($"[OpenRGB] {prefix}{message}");
+        logger.Log($"[OpenRGB] {prefix} {message}");
       }
     }
 

@@ -1,11 +1,10 @@
 using System.Text.RegularExpressions;
-using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
   // EFFECT 4: Jauge de remplissage linéaire (Barre de progression)
-  public class ProgressBarRule : BaseRgbRule
+  public class ProgressBarEffect : BaseRgbEffect
   {
     public string EmptyColorHex { get; set; } = "#000000";
     public string FillColorHex { get; set; } = "#00FF00";

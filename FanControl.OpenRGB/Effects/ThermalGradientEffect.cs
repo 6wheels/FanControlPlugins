@@ -1,9 +1,8 @@
-using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
-  public class ThermalGradientRule : BaseRgbRule
+  public class ThermalGradientEffect : BaseRgbEffect
   {
     // Propriétés publiques pour le JSON
     public string ColorMinHex { get; set; } = "#00FF00"; // Vert par défaut

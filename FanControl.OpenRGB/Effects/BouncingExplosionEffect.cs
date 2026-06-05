@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
@@ -7,7 +6,7 @@ namespace FanControl.OpenRGB.Effects
 
   // EFFECT 5: The "Crazy" Bouncing Ball & Confetti Explosion
   // 1. La classe d'origine (Bien vérifier qu'elle hérite de BaseRgbRule)
-  public class BouncingExplosionRule : BaseRgbRule
+  public class BouncingExplosionEffect : BaseRgbEffect
   {
     public string BgColorHex { get; set; } = "#000000";
     public string DotColorHex { get; set; } = "#FF00FF";

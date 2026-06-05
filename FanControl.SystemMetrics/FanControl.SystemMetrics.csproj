@@ -9,10 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.8" />
-    <Reference Include="FanControl.Plugins">
-      <HintPath>C:\Program files (x86)\FanControl\FanControl.Plugins.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
 </Project>

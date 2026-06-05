@@ -1,9 +1,8 @@
-using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
-  public class StaticColorRule : BaseRgbRule
+  public class StaticColorEffect : BaseRgbEffect
   {
     public string ColorHex { get; set; } = "#FFFFFF";
     public float FadeSpeed { get; set; } = 0.05f;

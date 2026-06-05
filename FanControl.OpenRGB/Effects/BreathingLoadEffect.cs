@@ -1,10 +1,9 @@
-using FanControl.OpenRGB.Rules;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
 {
   // EFFECT 2: Sinusoidal breathing where speed or baseline depends on the curve
-  public class BreathingLoadRule : BaseRgbRule
+  public class BreathingLoadEffect : BaseRgbEffect
   {
     public string BaseColorHex { get; set; } = "#000022";
     public string PeakColorHex { get; set; } = "#0000FF";

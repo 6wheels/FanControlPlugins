@@ -9,10 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="FanControl.Plugins">
-      <HintPath>C:\Program files (x86)\FanControl\FanControl.Plugins.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <PackageReference Include="OpenRGB.NET" Version="3.1.1" />
   </ItemGroup>
 

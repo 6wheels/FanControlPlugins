@@ -1,14 +1,11 @@
 namespace FanControl.OpenRGB.Rules
 {
-  public class RuleBinding
+  public class RuleBinding(RuleConfig config, OpenRgbControlSensor control)
   {
-    public string DeviceRegex { get; set; } = ".*";
-    public string? ZoneRegex { get; set; }
+    // La configuration statique (issue du JSON)
+    public RuleConfig Config { get; } = config;
 
-    public OpenRgbControlSensor Control { get; set; } = null!; // Notre nouvelle carte !
-    public float ActivationThreshold { get; set; } = 0f;
-
-    public BaseRgbRule MainRule { get; set; } = null!;
-    public BaseRgbRule? IdleRule { get; set; }
+    // Le capteur dynamique (qui vit dans l'UI de FanControl)
+    public OpenRgbControlSensor Control { get; } = control;
   }
 }

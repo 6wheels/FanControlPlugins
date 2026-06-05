@@ -1,18 +1,18 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using FanControl.OpenRGB.Effects;
 using OpenRGB.NET;
 
-namespace FanControl.OpenRGB.Rules
+namespace FanControl.OpenRGB.Effects
 {
   [JsonPolymorphic(TypeDiscriminatorPropertyName = "Type")]
-  [JsonDerivedType(typeof(StaticColorRule), "Static")]
-  [JsonDerivedType(typeof(ThermalGradientRule), "ThermalGradient")]
-  [JsonDerivedType(typeof(ThresholdBlinkRule), "ThresholdBlink")]
-  [JsonDerivedType(typeof(ProgressBarRule), "ProgressBar")]
-  [JsonDerivedType(typeof(BreathingLoadRule), "BreathingLoad")]
-  [JsonDerivedType(typeof(BouncingExplosionRule), "BouncingExplosion")]
-  public abstract class BaseRgbRule
+  [JsonDerivedType(typeof(StaticColorEffect), "Static")]
+  [JsonDerivedType(typeof(ThermalGradientEffect), "ThermalGradient")]
+  [JsonDerivedType(typeof(BlinkEffect), "Blink")]
+  [JsonDerivedType(typeof(ProgressBarEffect), "ProgressBar")]
+  [JsonDerivedType(typeof(BreathingLoadEffect), "BreathingLoad")]
+  [JsonDerivedType(typeof(BouncingExplosionEffect), "BouncingExplosion")]
+  [JsonDerivedType(typeof(AuroraBorealisEffect), "Aurora")]
+  public abstract class BaseRgbEffect
   {
     [JsonIgnore]
     public bool IsFinished { get; protected set; } = false;
