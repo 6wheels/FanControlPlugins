@@ -4,5 +4,8 @@
       <HintPath>$(MSBuildThisFileDirectory)lib\FanControl.Plugins.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <PackageReference Include="Costura.Fody" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>
