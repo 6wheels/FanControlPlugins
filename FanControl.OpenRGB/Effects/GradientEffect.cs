@@ -8,7 +8,7 @@ namespace FanControl.OpenRGB.Effects
     public string ColorMinHex { get; set; } = "#00FF00"; // Green by default
     public string ColorMaxHex { get; set; } = "#FF0000"; // Red by default
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color colorMin = ParseHex(ColorMinHex);
       Color colorMax = ParseHex(ColorMaxHex);
@@ -26,9 +26,7 @@ namespace FanControl.OpenRGB.Effects
       Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
       // Application with fade
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, colors, targetColor, transitionSpeed);
-
-      client.UpdateLeds(deviceIndex, colors);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, transitionSpeed);
     }
 
     private static Color ParseHex(string hex)

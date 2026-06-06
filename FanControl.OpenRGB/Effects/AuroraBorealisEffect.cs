@@ -33,13 +33,11 @@ namespace FanControl.OpenRGB.Effects
 
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed)
+    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
       Color c3 = ParseHex(Color3Hex);
-
-      Color[] colors = client.GetControllerData(deviceIndex).Colors;
 
       float time = frameCount * Speed;
       bool isVertical = Direction == AuroraDirection.Vertical;
@@ -64,7 +62,7 @@ namespace FanControl.OpenRGB.Effects
               for (int x = 0; x < width; x++)
               {
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
-                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < colors.Length)
+                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
                 {
                   string ledName = device.Leds[ledOffset + ledIndex].Name;
 
@@ -82,7 +80,7 @@ namespace FanControl.OpenRGB.Effects
                     );
 
                     // Application de la transition (Fade) pour s'enchaîner doucement avec l'état précédent
-                    colors[ledOffset + ledIndex] = LerpColor(colors[ledOffset + ledIndex], targetColor, transitionSpeed);
+                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, transitionSpeed);
                   }
                 }
               }
@@ -105,15 +103,13 @@ namespace FanControl.OpenRGB.Effects
                     (byte)(waveColor.B * intensity)
                 );
 
-                colors[ledOffset + l] = LerpColor(colors[ledOffset + l], targetColor, transitionSpeed);
+                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, transitionSpeed);
               }
             }
           }
         }
         ledOffset += (int)zone.LedCount;
       }
-
-      client.UpdateLeds(deviceIndex, colors);
     }
 
     private Color CalculateAuroraColor(int x, int y, float time, Color c1, Color c2, Color c3, bool isVertical)

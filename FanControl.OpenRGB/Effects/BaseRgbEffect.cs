@@ -17,24 +17,21 @@ namespace FanControl.OpenRGB.Effects
     [JsonIgnore]
     public bool IsFinished { get; protected set; } = false;
 
-    public void Apply(OpenRgbClient client, Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed)
+    public void Apply(OpenRgbClient client, Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
     {
       if (IsFinished) return;
-
       for (int i = 0; i < devices.Length; i++)
       {
         var device = devices[i];
         if (Regex.IsMatch(device.Name ?? "", deviceRegex))
         {
-          ProcessEffect(client, device, i, zoneRegex, ledRegex, currentValue, frameCount, transitionSpeed);
+          ProcessEffect(client, device, i, zoneRegex, ledRegex, currentValue, frameCount, transitionSpeed, frameBuffers[i]);
         }
       }
     }
 
-    // Strict abstract signature: 6 parameters
-    protected abstract void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed);
+    protected abstract void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer);
 
-    // Strict utility signature: 5 parameters
     protected static void ApplyToTargetLeds(Device device, string? zoneRegex, string? ledRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
     {
       static Color LerpColor(Color current, Color target, float speed)

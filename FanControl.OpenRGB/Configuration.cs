@@ -54,5 +54,7 @@ namespace FanControl.OpenRGB
 
     public BaseRgbEffect ActiveEffect { get; set; } = null!;
     public BaseRgbEffect? IdleEffect { get; set; }
+
+    public BaseRgbEffect Effect { get; set; } = null!;
   }
 }

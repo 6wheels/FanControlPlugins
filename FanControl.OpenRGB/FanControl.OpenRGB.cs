@@ -107,78 +107,90 @@ namespace FanControl.OpenRGB
 
     private void RenderLoop_Tick(object? state)
     {
-      // --- LOCK MANAGEMENT (DEV TOOLKIT) ---
-      bool lockExists = File.Exists(_lockFilePath);
-
-      if (lockExists)
+      if (File.Exists(_lockFilePath))
       {
-        if (!_isLocked)
+        if (_client != null && _client.Connected)
         {
-          _isLocked = true;
-          Log("Dev Toolkit detected (Lock file). Plugin is paused...", LogLevel.Warning);
+          _client.Dispose();
+          _client = null;
+          Log("FanControl plugin paused (DevKit mode active).", LogLevel.Info);
         }
-        return; // We completely cancel the execution of this frame
+        return;
       }
-      else if (_isLocked)
+      else if (_client == null || !_client.Connected)
       {
-        _isLocked = false;
-        Log("Dev Toolkit closed. RGB control resumed by FanControl.", LogLevel.Info);
+        // Existing reconnection logic... (Keep your code here)
       }
-      // ---------------------------------------------
 
-      // We ensure we are properly connected before continuing
       if (_client == null || !_client.Connected) return;
 
       _frameCount++;
+      bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
 
+      // ==========================================
+      // 1. INITIALIZE VIRTUAL BUFFERS
+      // ==========================================
+      // Capture the current physical hardware state. This serves as the basis
+      // for the Lerp (fade) to work smoothly across frames.
+      Color[][] frameBuffers = new Color[_devices.Length][];
+      for (int i = 0; i < _devices.Length; i++)
+      {
+        frameBuffers[i] = _client.GetControllerData(i).Colors;
+      }
+
+      // ==========================================
+      // 2. STARTUP ANIMATION (Highest priority)
+      // ==========================================
       if (_config.Startup != null && _config.Startup.Effect != null)
       {
         if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
         {
-          // Apply the startup effect with an arbitrary value of 100f and a Fade of 1.0f
-          _config.Startup.Effect.Apply(_client, _devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed);
-          return; // Stop the RenderLoop_Tick here, normal rules are not read
+          _config.Startup.Effect.Apply(_client, _devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, frameBuffers);
+
+          // Immediate hardware commit
+          for (int i = 0; i < _devices.Length; i++) _client.UpdateLeds(i, frameBuffers[i]);
+          return;
         }
         else if (_startupStopwatch.IsRunning)
         {
           _startupStopwatch.Stop();
-          Log("Startup animation completed. Switching to standard monitoring.", LogLevel.Info);
+          Log("Startup animation finished. Switching to layers.", LogLevel.Info);
         }
       }
 
-      // We log only 1 frame every 2 seconds (if 30 FPS)
-      bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
-
+      // ==========================================
+      // 3. LAYER STACKING (Z-Index)
+      // ==========================================
       foreach (var binding in _bindings)
       {
         float val = binding.Control.Value ?? 0f;
-        BaseRgbEffect? effectToApply = null;
-        float valueToPass = val;
 
-        if (val >= binding.Config.ActivationThreshold)
+        // If the sensor is below threshold, this layer is INVISIBLE (transparent).
+        // Skip directly to the next layer.
+        if (val < binding.Config.ActivationThreshold) continue;
+
+        // If active, remap the value from threshold to 0-100%
+        // starting at the moment it crosses the threshold.
+        float valueToPass;
+        float range = 100f - binding.Config.ActivationThreshold;
+        if (range > 0)
         {
-          effectToApply = binding.Config.ActiveEffect;
-
-          // Interpolation for the active effect (Range : Threshold -> 100)
-          float range = 100f - binding.Config.ActivationThreshold;
-          valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
+          valueToPass = Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f);
         }
-        else if (binding.Config.IdleEffect != null)
+        else
         {
-          effectToApply = binding.Config.IdleEffect;
-
-          // Interpolation for the idle effect (Range : 0 -> Threshold)
-          valueToPass = binding.Config.ActivationThreshold > 0 ? Math.Clamp((val / binding.Config.ActivationThreshold) * 100f, 0f, 100f) : 0f;
+          valueToPass = 100f;
         }
 
         float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
 
         if (shouldLogThisFrame)
         {
-          Log($"Card '{binding.Control.Name}' | Val: {val:F1} (Interpolated: {valueToPass:F1}) | Threshold: {binding.Config.ActivationThreshold} | Rule: {binding.Config.Name}", LogLevel.Debug);
+          Log($"Layer '{binding.Config.Name}' | Val: {val:F1} (Mapped: {valueToPass:F1}) | Threshold: {binding.Config.ActivationThreshold}", LogLevel.Debug);
         }
 
-        effectToApply?.Apply(
+        // Apply the effect to our virtual in-memory buffers
+        binding.Config.Effect?.Apply(
             _client,
             _devices,
             binding.Config.DeviceRegex,
@@ -186,8 +198,17 @@ namespace FanControl.OpenRGB
             binding.Config.LedRegex,
             valueToPass,
             _frameCount,
-            speedToUse
+            speedToUse,
+            frameBuffers
         );
+      }
+
+      // ==========================================
+      // 4. HARDWARE COMMIT (ONE USB CALL PER DEVICE)
+      // ==========================================
+      for (int i = 0; i < _devices.Length; i++)
+      {
+        _client.UpdateLeds(i, frameBuffers[i]);
       }
     }
 
@@ -199,8 +220,6 @@ namespace FanControl.OpenRGB
       {
         // We add a visual prefix if it is an error or debug
         string prefix = $"[{level.ToString().ToUpper()}]";
-
-        // 'logger' comes from the primary constructor of your class
         logger.Log($"[OpenRGB] {prefix} {message}");
       }
     }

@@ -153,7 +153,7 @@ namespace FanControl.OpenRGB
         for (int m = 0; m < device.Modes.Length; m++)
         {
           var mode = device.Modes[m];
-          string activeTag = (m == device.ActiveModeIndex) ? "[ACTIF]" : "       ";
+          string activeTag = (m == device.ActiveModeIndex) ? "[ACTIVE]" : "       ";
           Console.WriteLine($"      {activeTag} [{m}] {mode.Name,-20} (Speed: {mode.SpeedMin}-{mode.SpeedMax}, Flags: {mode.Flags})");
         }
 
@@ -171,7 +171,7 @@ namespace FanControl.OpenRGB
           Console.WriteLine($"      - [Zone {z}] {zone.Name}");
           Console.ResetColor();
 
-          Console.WriteLine($"        Type: {zone.Type} | Nb LEDs: {zone.LedCount}");
+          Console.WriteLine($"        Type: {zone.Type} | LED Count: {zone.LedCount}");
 
           // If the zone is a matrix (e.g.: Keyboard), we display its dimensions
           if (zone.MatrixMap != null)
@@ -296,26 +296,37 @@ namespace FanControl.OpenRGB
         }
       }
 
-      Console.Write("\n- Valeur du capteur simulée (0-100, ou 'auto' pour osciller) [Défaut: 100] : ");
+      Console.Write("\n- Simulated sensor value (0-100, or 'auto' to oscillate) [Default: 100] : ");
       string? valInput = Console.ReadLine();
       bool isAutoValue = valInput?.Trim().ToLower() == "auto";
       float fixedValue = 100f;
       if (!isAutoValue && float.TryParse(valInput, out float p)) fixedValue = Math.Clamp(p, 0f, 100f);
 
-      Console.WriteLine("\n▶ Lancement de la boucle de rendu... Appuyez sur une touche pour arrêter.");
+      Console.WriteLine("\n▶ Starting render loop... Press any key to stop.");
 
       var devices = client.GetAllControllerData();
       int frameCount = 0;
 
+      Color[][] frameBuffers = new Color[devices.Length][];
+      for (int i = 0; i < devices.Length; i++)
+      {
+        frameBuffers[i] = devices[i].Colors;
+      }
+
       while (!Console.KeyAvailable)
       {
-        // Si 'auto', on génère une onde qui fait des allers-retours doux entre 0 et 100
+        // If 'auto', generate a smooth oscillation between 0 and 100
         float valToPass = isAutoValue
             ? (50f + 50f * (float)Math.Sin(frameCount * 0.03))
             : fixedValue;
 
-        // On passe valToPass, et on force transitionSpeed à 1.0f pour les tests bruts
-        effect.Apply(client, devices, ".*", null, null, valToPass, frameCount, 1.0f);
+        // Pass valToPass, and force transitionSpeed to 1.0f for raw testing
+        effect.Apply(client, devices, ".*", null, null, valToPass, frameCount, 1.0f, frameBuffers);
+
+        for (int i = 0; i < devices.Length; i++)
+        {
+          client.UpdateLeds(i, frameBuffers[i]);
+        }
 
         frameCount++;
         Thread.Sleep(33);
