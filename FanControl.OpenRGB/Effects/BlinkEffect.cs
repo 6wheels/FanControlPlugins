@@ -29,7 +29,7 @@ namespace FanControl.OpenRGB.Effects
       set => _minBlinkIntervalFrames = Math.Max(1, value);
     }
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
@@ -43,15 +43,7 @@ namespace FanControl.OpenRGB.Effects
       bool isColor1 = (frameCount % (currentInterval * 2)) < currentInterval;
       Color targetColor = isColor1 ? c1 : c2;
 
-      Color[] colors = client.GetControllerData(deviceIndex).Colors;
       ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, 1.0f); // No transition for blinking, we want an immediate switch
-    }
-
-    private static Color ParseHex(string hex)
-    {
-      hex = hex.Replace("#", "");
-      if (hex.Length != 6) return new Color(255, 255, 255);
-      return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
     }
   }
 }

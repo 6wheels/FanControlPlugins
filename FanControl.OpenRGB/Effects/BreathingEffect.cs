@@ -11,7 +11,7 @@ namespace FanControl.OpenRGB.Effects
     public float MinSpeed { get; set; } = 0.02f;
     public float MaxSpeed { get; set; } = 0.15f;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color baseCol = ParseHex(BaseColorHex);
       Color peakCol = ParseHex(PeakColorHex);
@@ -28,16 +28,7 @@ namespace FanControl.OpenRGB.Effects
       byte b = (byte)(baseCol.B + (peakCol.B - baseCol.B) * sine);
 
       Color target = new(r, g, b);
-      Color[] colors = client.GetControllerData(deviceIndex).Colors;
-
       ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, target, transitionSpeed);
-    }
-
-    private static Color ParseHex(string hex)
-    { /* Same as above */
-      hex = hex.Replace("#", "");
-      if (hex.Length != 6) return new Color(255, 255, 255);
-      return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
     }
   }
 }

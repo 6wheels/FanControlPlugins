@@ -33,7 +33,7 @@ namespace FanControl.OpenRGB.Effects
 
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
-    protected override void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
@@ -132,19 +132,6 @@ namespace FanControl.OpenRGB.Effects
 
       if (factor < 0.5f) return LerpColor(c1, c2, factor * 2f);
       else return LerpColor(c2, c3, (factor - 0.5f) * 2f);
-    }
-
-    private Color LerpColor(Color a, Color b, float t)
-    {
-      t = Math.Clamp(t, 0f, 1f);
-      return new Color((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
-    }
-
-    private static Color ParseHex(string hex)
-    {
-      hex = hex.Replace("#", "");
-      if (hex.Length != 6) return new Color(255, 255, 255);
-      return new Color(Convert.ToByte(hex[..2], 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16));
     }
   }
 }

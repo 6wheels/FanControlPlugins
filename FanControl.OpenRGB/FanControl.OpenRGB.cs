@@ -19,7 +19,6 @@ namespace FanControl.OpenRGB
     private OpenRgbConfig _config = new();
     private readonly string _configPath = "OpenRGBConfig.json";
     private readonly string _lockFilePath = Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
-    private bool _isLocked = false;
     private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
 
@@ -145,7 +144,7 @@ namespace FanControl.OpenRGB
       {
         if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
         {
-          _config.Startup.Effect.Apply(_client, _devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, frameBuffers);
+          _config.Startup.Effect.Apply(_devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, frameBuffers);
 
           // Immediate hardware commit
           for (int i = 0; i < _devices.Length; i++) _client.UpdateLeds(i, frameBuffers[i]);
@@ -191,7 +190,6 @@ namespace FanControl.OpenRGB
 
         // Apply the effect to our virtual in-memory buffers
         binding.Config.Effect?.Apply(
-            _client,
             _devices,
             binding.Config.DeviceRegex,
             binding.Config.ZoneRegex,

@@ -10,6 +10,8 @@ namespace FanControl.OpenRGB.Effects
   [JsonDerivedType(typeof(BlinkEffect), "Blink")]
   [JsonDerivedType(typeof(BreathingEffect), "Breathing")]
   [JsonDerivedType(typeof(AuroraEffect), "Aurora")]
+  [JsonDerivedType(typeof(SpatialGradientEffect), "SpatialGradient")]
+  [JsonDerivedType(typeof(ProgressBarEffect), "ProgressBar")]
   public abstract class BaseRgbEffect
   {
     public bool ModulateByValue { get; set; } = true;
@@ -17,7 +19,7 @@ namespace FanControl.OpenRGB.Effects
     [JsonIgnore]
     public bool IsFinished { get; protected set; } = false;
 
-    public void Apply(OpenRgbClient client, Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
+    public void Apply(Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
     {
       if (IsFinished) return;
       for (int i = 0; i < devices.Length; i++)
@@ -25,12 +27,12 @@ namespace FanControl.OpenRGB.Effects
         var device = devices[i];
         if (Regex.IsMatch(device.Name ?? "", deviceRegex))
         {
-          ProcessEffect(client, device, i, zoneRegex, ledRegex, currentValue, frameCount, transitionSpeed, frameBuffers[i]);
+          ProcessEffect(device, zoneRegex, ledRegex, currentValue, frameCount, transitionSpeed, frameBuffers[i]);
         }
       }
     }
 
-    protected abstract void ProcessEffect(OpenRgbClient client, Device device, int deviceIndex, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer);
+    protected abstract void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer);
 
     protected static void ApplyToTargetLeds(Device device, string? zoneRegex, string? ledRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
     {
@@ -60,6 +62,26 @@ namespace FanControl.OpenRGB.Effects
         }
         ledOffset += (int)zone.LedCount;
       }
+    }
+
+    protected static Color LerpColor(Color a, Color b, float t)
+    {
+      t = Math.Clamp(t, 0f, 1f);
+      return new Color((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+    }
+
+    protected static Color ParseHex(string hex)
+    {
+      if (string.IsNullOrEmpty(hex)) return new Color(255, 255, 255);
+
+      hex = hex.Replace("#", "");
+      if (hex.Length != 6) return new Color(255, 255, 255);
+
+      return new Color(
+          Convert.ToByte(hex[..2], 16),
+          Convert.ToByte(hex.Substring(2, 2), 16),
+          Convert.ToByte(hex.Substring(4, 2), 16)
+      );
     }
   }
 }
