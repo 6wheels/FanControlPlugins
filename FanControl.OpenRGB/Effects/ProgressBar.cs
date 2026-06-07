@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using OpenRGB.NET;
 
@@ -23,7 +24,8 @@ namespace FanControl.OpenRGB.Effects
       {
         if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
         {
-          // === MODE 2D (Matrice) ===
+          var targetLeds = new List<(int GlobalIndex, int Row, int Column)>();
+
           if (zone.MatrixMap != null)
           {
             uint width = zone.MatrixMap.Width;
@@ -36,42 +38,52 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
                 {
-                  string ledName = device.Leds[ledOffset + ledIndex].Name;
+                  int globalIndex = ledOffset + (int)ledIndex;
+                  string ledName = device.Leds[globalIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
-                    float ledRatio = width > 1 ? (float)x / (width - 1) : 0f;
-
-                    if (ledRatio <= fillRatio)
-                    {
-                      buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], fillCol, transitionSpeed);
-                    }
-                    else if (!isTransparent)
-                    {
-                      buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], emptyCol, transitionSpeed);
-                    }
+                    targetLeds.Add((globalIndex, y, x));
                   }
                 }
               }
             }
           }
-          // === MODE 1D ===
           else
           {
             for (int l = 0; l < zone.LedCount; l++)
             {
-              string ledName = device.Leds[ledOffset + l].Name;
+              int globalIndex = ledOffset + l;
+              string ledName = device.Leds[globalIndex].Name;
               if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
               {
-                float ledRatio = zone.LedCount > 1 ? (float)l / (zone.LedCount - 1) : 0f;
+                targetLeds.Add((globalIndex, 0, l));
+              }
+            }
+          }
 
-                if (ledRatio <= fillRatio)
-                {
-                  buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], fillCol, transitionSpeed);
-                }
-                else if (!isTransparent)
-                {
-                  buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], emptyCol, transitionSpeed);
-                }
+          if (targetLeds.Count > 0)
+          {
+            targetLeds.Sort((a, b) =>
+            {
+              int rowCompare = a.Row.CompareTo(b.Row);
+              return rowCompare != 0 ? rowCompare : a.Column.CompareTo(b.Column);
+            });
+
+            int targetCount = targetLeds.Count;
+            int fillCount = (int)Math.Round(fillRatio * targetCount);
+            fillCount = Math.Clamp(fillCount, 0, targetCount);
+            if (fillRatio >= 0.9999f) fillCount = targetCount;
+
+            for (int i = 0; i < targetCount; i++)
+            {
+              int ledIndex = targetLeds[i].GlobalIndex;
+              if (i < fillCount)
+              {
+                buffer[ledIndex] = LerpColor(buffer[ledIndex], fillCol, transitionSpeed);
+              }
+              else if (!isTransparent)
+              {
+                buffer[ledIndex] = LerpColor(buffer[ledIndex], emptyCol, transitionSpeed);
               }
             }
           }
