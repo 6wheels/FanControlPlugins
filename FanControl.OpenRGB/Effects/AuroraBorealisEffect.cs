@@ -79,7 +79,7 @@ namespace FanControl.OpenRGB.Effects
                         (byte)(waveColor.B * intensity)
                     );
 
-                    // Application de la transition (Fade) pour s'enchaîner doucement avec l'état précédent
+                    // Fade smoothly from the previous state into the new aurora color.
                     buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, transitionSpeed);
                   }
                 }

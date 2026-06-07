@@ -6,8 +6,8 @@ namespace FanControl.OpenRGB.Effects
 {
   public class SpatialGradientEffect : BaseRgbEffect
   {
-    public string ColorMinHex { get; set; } = "#00FF00"; // Couleur à gauche
-    public string ColorMaxHex { get; set; } = "#0000FF"; // Couleur à droite
+    public string ColorMinHex { get; set; } = "#00FF00"; // Color at the left edge of the gradient
+    public string ColorMaxHex { get; set; } = "#0000FF"; // Color at the right edge of the gradient
 
     protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
@@ -21,7 +21,7 @@ namespace FanControl.OpenRGB.Effects
       {
         if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
         {
-          // === MODE 2D (Clavier / Souris à matrice) ===
+          // === 2D MODE (keyboard or other matrix-based device) ===
           if (zone.MatrixMap != null)
           {
             uint width = zone.MatrixMap.Width;
@@ -37,7 +37,7 @@ namespace FanControl.OpenRGB.Effects
                   string ledName = device.Leds[ledOffset + ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
-                    // Calcul du ratio horizontal basé sur la position X dans la matrice
+                    // Determine the horizontal position ratio within the matrix row.
                     float ratio = width > 1 ? (float)x / (width - 1) : 0f;
 
                     Color gradColor = Interpolate(cMin, cMax, ratio);
@@ -53,7 +53,7 @@ namespace FanControl.OpenRGB.Effects
               }
             }
           }
-          // === MODE 1D (Rubans LED, Ventilateurs, RAM) ===
+          // === 1D MODE (LED strips, fans, RAM lighting) ===
           else
           {
             for (int l = 0; l < zone.LedCount; l++)

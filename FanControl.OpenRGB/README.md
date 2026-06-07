@@ -69,9 +69,13 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 - If the value is below the threshold, the IdleEffect is applied.
 
 ### Effects Types
-- `Static`: Requires `ColorHex`. Displays a solid color.
-- `Blink`: Requires `Color1Hex`, `Color2Hex`, and `BlinkIntervalFrames`. Flashes between two colors.
-- `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, `Speed`, `Scale`, and `Direction` (`Horizontal` or `Vertical`). Creates a moving 2D waveform.
+- `Static`: Requires `ColorHex`. Displays a solid color, optionally dimmed by the current value when `ModulateByValue` is true.
+- `Gradient`: Requires `ColorMinHex` and `ColorMaxHex`. Colors interpolate between minimum and maximum values based on the current value.
+- `Blink`: Requires `Color1Hex`, `Color2Hex`, and `BlinkIntervalFrames`. Alternates between two colors at the configured interval.
+- `Breathing`: Requires `BaseColorHex`, `PeakColorHex`, `MinSpeed`, and `MaxSpeed`. Creates a smooth pulsating fade whose speed increases with the current value.
+- `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, `Speed`, `Scale`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
+- `SpatialGradient`: Requires `ColorMinHex` and `ColorMaxHex`. Draws a left-to-right gradient across a 1D strip or 2D matrix.
+- `ProgressBar`: Requires `FillColorHex` and optional `EmptyColorHex`. Lights LEDs sequentially to represent the current value, with an optional transparent empty state.
 
 ## 🧰 The Developer Toolkit (Standalone Mode)
 
@@ -88,6 +92,13 @@ Open a terminal in the `FanControl.OpenRGB` directory and run:
 `dotnet run`
 
 ### Features of the Toolkit
-When launched, the Dev Toolkit automatically creates a `fancontrol_rgb.lock` file. This tells the FanControl background plugin to pause its rendering loop, preventing USB port conflict.
-1. **Hardware Scanner:** Scans your actual setup and prints the internal OpenRGB Device IDs, Zone Names, and precise 2D Matrix Coordinates (useful for `ZoneRegex` configuration).
-2. **Effects Tester:** Uses C# Reflection to detect all coded effects dynamically. You can enter parameter values in the console (Speed, Hex Colors, Scale) and see the effect run on your keyboard in real-time before saving them to your JSON config.
+When launched, the Dev Toolkit automatically creates a `fancontrol_rgb.lock` file. This tells the FanControl background plugin to pause its rendering loop, preventing USB port conflicts.
+1. **Hardware Scanner:** Scans your setup and prints OpenRGB device, zone, and LED details, including matrix dimensions when available. This output is useful for constructing `DeviceRegex`, `ZoneRegex`, and `LEDRegex` filters.
+2. **Effects Tester:** Automatically discovers effect classes with reflection. You can enter custom effect parameters at runtime and test them immediately.
+
+### Toolkit Usage Notes
+- Leave `Device filter regex` blank or type `.*` to target all devices.
+- Leave `Zone filter regex` and `LED filter regex` blank to target every matching LED.
+- For the simulated sensor value, leave the field blank or type `auto` to enable the default auto-oscillating mode.
+- If you enter a numeric value, the toolkit uses manual mode and lets you adjust the value with `+` / `-` without exiting the effect.
+- Press `ESC` any time to stop the running effect and return to the toolkit menu.

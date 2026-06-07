@@ -16,7 +16,7 @@ namespace FanControl.OpenRGB.Effects
       bool isTransparent = string.IsNullOrEmpty(EmptyColorHex) || EmptyColorHex.Equals("Transparent", StringComparison.OrdinalIgnoreCase);
       Color emptyCol = isTransparent ? new Color() : ParseHex(EmptyColorHex);
 
-      // Interpolation déjà calculée de 0.0 à 1.0 par rapport au seuil
+      // Convert the current value into a normalized fill ratio between 0.0 and 1.0.
       float fillRatio = Math.Clamp(value / 100f, 0f, 1f);
 
       int ledOffset = 0;

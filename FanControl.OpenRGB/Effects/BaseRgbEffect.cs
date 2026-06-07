@@ -12,13 +12,22 @@ namespace FanControl.OpenRGB.Effects
   [JsonDerivedType(typeof(AuroraEffect), "Aurora")]
   [JsonDerivedType(typeof(SpatialGradientEffect), "SpatialGradient")]
   [JsonDerivedType(typeof(ProgressBarEffect), "ProgressBar")]
+  /// <summary>
+  /// Base class for all RGB effects used by the FanControl OpenRGB plugin and the developer toolkit.
+  /// </summary>
   public abstract class BaseRgbEffect
   {
+    /// <summary>
+    /// If true, the effect will use the sensor value (0-100) as a modulation factor.
+    /// </summary>
     public bool ModulateByValue { get; set; } = true;
 
     [JsonIgnore]
     public bool IsFinished { get; protected set; } = false;
 
+    /// <summary>
+    /// Runs the effect on every device whose name matches the configured device regex.
+    /// </summary>
     public void Apply(Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
     {
       if (IsFinished) return;

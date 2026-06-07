@@ -211,11 +211,12 @@ namespace FanControl.OpenRGB
     {
       Console.Clear();
 
-      List<Type> effectTypes = [];
+      List<Type> effectTypes = new List<Type>();
 
       try
       {
-        // Attempts to load all types
+        // Discover all available effect classes dynamically so the toolkit stays in sync with code.
+        // This reflection logic finds concrete subclasses of BaseRgbEffect and avoids abstract base types.
         effectTypes = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
             .ToList();
@@ -310,6 +311,7 @@ namespace FanControl.OpenRGB
 
       Console.Write("\n- Simulated sensor value (0-100, or 'auto') [Default: auto] : ");
       string? valInput = Console.ReadLine();
+      // Leaving the value blank or typing "auto" enables a smooth auto-oscillating driver value.
       bool isAutoValue = string.IsNullOrWhiteSpace(valInput) || valInput.Trim().ToLower() == "auto";
       float fixedValue = 100f;
       if (!isAutoValue)
@@ -377,6 +379,7 @@ namespace FanControl.OpenRGB
 
             if (processKey && !isAutoValue)
             {
+              // Manual value adjustment is only active when the user explicitly chooses a fixed number.
               if (incoming.Key == ConsoleKey.Add || incoming.Key == ConsoleKey.OemPlus)
               {
                 fixedValue = Math.Clamp(fixedValue + 1f, 0f, 100f);
