@@ -237,7 +237,7 @@ namespace FanControl.OpenRGB
       // ... (The rest of your method remains exactly the same)
       for (int i = 0; i < effectTypes.Count; i++)
       {
-        Console.WriteLine($"[{i}] {effectTypes[i].Name}");
+        Console.WriteLine($"[{i + 1}] {effectTypes[i].Name}");
       }
       Console.WriteLine($"\n[ESC] Return to main menu");
       Console.WriteLine("===========================================");
@@ -246,9 +246,9 @@ namespace FanControl.OpenRGB
       if (input.Key == ConsoleKey.Escape) return;
 
       // If the user types a digit corresponding to an effect
-      if (int.TryParse(input.KeyChar.ToString(), out int index) && index >= 0 && index < effectTypes.Count)
+      if (int.TryParse(input.KeyChar.ToString(), out int selection) && selection >= 1 && selection <= effectTypes.Count)
       {
-        RunEffectTest(client, effectTypes[index]);
+        RunEffectTest(client, effectTypes[selection - 1]);
       }
     }
 
@@ -327,7 +327,6 @@ namespace FanControl.OpenRGB
       var devices = client.GetAllControllerData();
       int frameCount = 0;
       DateTime lastManualAdjust = DateTime.MinValue;
-      DateTime lastAdjustKeyTime = DateTime.MinValue;
       DateTime holdStartTime = DateTime.MinValue;
       ConsoleKey? heldAdjustKey = null;
       bool shouldExit = false;
@@ -340,22 +339,73 @@ namespace FanControl.OpenRGB
 
       while (true)
       {
-        bool hasKeyEvent = false;
-        ConsoleKey key = 0;
-
-        while (Console.KeyAvailable)
+        if (Console.KeyAvailable)
         {
           var incoming = Console.ReadKey(true);
           if (incoming.Key == ConsoleKey.Escape)
           {
-            shouldExit = true;
             break;
           }
 
           if (incoming.Key == ConsoleKey.Add || incoming.Key == ConsoleKey.OemPlus || incoming.Key == ConsoleKey.Subtract || incoming.Key == ConsoleKey.OemMinus)
           {
-            hasKeyEvent = true;
-            key = incoming.Key;
+            var now = DateTime.UtcNow;
+            bool processKey = false;
+
+            if (heldAdjustKey != incoming.Key)
+            {
+              heldAdjustKey = incoming.Key;
+              holdStartTime = now;
+              processKey = true;
+            }
+            else
+            {
+              var holdDuration = now - holdStartTime;
+              int repeatMs = holdDuration > TimeSpan.FromSeconds(1.5)
+                  ? 40
+                  : holdDuration > TimeSpan.FromSeconds(1.0)
+                      ? 60
+                      : holdDuration > TimeSpan.FromSeconds(0.5)
+                          ? 80
+                          : 300;
+
+              if (now - lastManualAdjust >= TimeSpan.FromMilliseconds(repeatMs))
+              {
+                processKey = true;
+              }
+            }
+
+            if (processKey && !isAutoValue)
+            {
+              if (incoming.Key == ConsoleKey.Add || incoming.Key == ConsoleKey.OemPlus)
+              {
+                fixedValue = Math.Clamp(fixedValue + 1f, 0f, 100f);
+              }
+              else if (incoming.Key == ConsoleKey.Subtract || incoming.Key == ConsoleKey.OemMinus)
+              {
+                fixedValue = Math.Clamp(fixedValue - 1f, 0f, 100f);
+              }
+              Console.Write($"\rMode: manual | Value: {fixedValue:F1}%   ");
+            }
+
+            if (processKey)
+            {
+              lastManualAdjust = now;
+            }
+
+            // Remove any repeated identical adjust key events from the buffer.
+            while (Console.KeyAvailable)
+            {
+              var extra = Console.ReadKey(true);
+              if (extra.Key != incoming.Key)
+              {
+                if (extra.Key == ConsoleKey.Escape)
+                {
+                  shouldExit = true;
+                }
+                break;
+              }
+            }
           }
         }
 
@@ -364,50 +414,13 @@ namespace FanControl.OpenRGB
           break;
         }
 
-        if (hasKeyEvent)
-        {
-          if (heldAdjustKey != key)
-          {
-            heldAdjustKey = key;
-            holdStartTime = DateTime.UtcNow;
-            lastManualAdjust = DateTime.UtcNow - TimeSpan.FromMilliseconds(200);
-          }
-          lastAdjustKeyTime = DateTime.UtcNow;
-        }
-        else if (heldAdjustKey.HasValue && DateTime.UtcNow - lastAdjustKeyTime > TimeSpan.FromMilliseconds(300))
+        if (heldAdjustKey.HasValue && DateTime.UtcNow - lastManualAdjust > TimeSpan.FromMilliseconds(350))
         {
           heldAdjustKey = null;
         }
 
-        if (!isAutoValue && heldAdjustKey.HasValue)
-        {
-          var holdDuration = DateTime.UtcNow - holdStartTime;
-          int repeatMs = holdDuration > TimeSpan.FromSeconds(1.5)
-              ? 40
-              : holdDuration > TimeSpan.FromSeconds(1.0)
-                  ? 60
-                  : holdDuration > TimeSpan.FromSeconds(0.5)
-                      ? 80
-                      : 120;
-
-          if (DateTime.UtcNow - lastManualAdjust >= TimeSpan.FromMilliseconds(repeatMs))
-          {
-            if (heldAdjustKey == ConsoleKey.Add || heldAdjustKey == ConsoleKey.OemPlus)
-            {
-              fixedValue = Math.Clamp(fixedValue + 1f, 0f, 100f);
-            }
-            else if (heldAdjustKey == ConsoleKey.Subtract || heldAdjustKey == ConsoleKey.OemMinus)
-            {
-              fixedValue = Math.Clamp(fixedValue - 1f, 0f, 100f);
-            }
-
-            lastManualAdjust = DateTime.UtcNow;
-            Console.Write($"\rMode: manual | Value: {fixedValue:F1}%   ");
-          }
-        }
-
         float valToPass = isAutoValue
-            ? (50f + 50f * (float)Math.Sin(frameCount * 0.03))
+            ? (50f + 50f * (float)Math.Sin(frameCount * 0.01))
             : fixedValue;
 
         Console.Write($"\rMode: {(isAutoValue ? "auto  " : "manual")} | Value: {valToPass:F1}%   ");
