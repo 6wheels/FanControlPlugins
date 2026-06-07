@@ -36,11 +36,13 @@ namespace FanControl.OpenRGB.Effects
 
       float ratio = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
 
-      // The blinking loops indefinitely while the effect is active
-      int currentInterval = (int)(MaxBlinkIntervalFrames - (MaxBlinkIntervalFrames - MinBlinkIntervalFrames) * ratio);
-      currentInterval = Math.Max(1, currentInterval);
-
-      bool isColor1 = (frameCount % (currentInterval * 2)) < currentInterval;
+      // The blinking loops indefinitely while the effect is active.
+      // Use a floating-point interval to reduce the jitter when the value changes dynamically.
+      float currentInterval = MaxBlinkIntervalFrames - (MaxBlinkIntervalFrames - MinBlinkIntervalFrames) * ratio;
+      currentInterval = Math.Max(1f, currentInterval);
+      float period = currentInterval * 2f;
+      float phase = frameCount % period;
+      bool isColor1 = phase < currentInterval;
       Color targetColor = isColor1 ? c1 : c2;
 
       ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, 1.0f); // No transition for blinking, we want an immediate switch
