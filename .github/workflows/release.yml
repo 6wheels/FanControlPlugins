@@ -66,13 +66,11 @@ jobs:
           test -n "$URL" || { echo "No matching .zip asset for ${FANCONTROL_VERSION}"; exit 1; }
           echo "Downloading $URL"
           curl -fsSL "$URL" -o fc.zip
-          mkdir -p extract lib
-          # FanControl zips use backslash path separators; unzip keeps them
-          # as literal filenames, so match with a leading-glob pattern.
-          unzip -oq fc.zip -d extract
-          DLL=$(find extract -name '*FanControl.Plugins.dll' | head -n1)
-          test -n "$DLL" || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
-          cp "$DLL" lib/FanControl.Plugins.dll
+          mkdir -p lib
+          # Extract only the SDK dll (root entry). Avoids unzip's non-zero
+          # exit on the backslash-path warning emitted for other entries.
+          unzip -oq fc.zip 'FanControl.Plugins.dll' -d lib
+          test -f lib/FanControl.Plugins.dll || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
