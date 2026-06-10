@@ -67,8 +67,10 @@ jobs:
           echo "Downloading $URL"
           curl -fsSL "$URL" -o fc.zip
           mkdir -p extract lib
+          # FanControl zips use backslash path separators; unzip keeps them
+          # as literal filenames, so match with a leading-glob pattern.
           unzip -oq fc.zip -d extract
-          DLL=$(find extract -name 'FanControl.Plugins.dll' | head -n1)
+          DLL=$(find extract -name '*FanControl.Plugins.dll' | head -n1)
           test -n "$DLL" || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
           cp "$DLL" lib/FanControl.Plugins.dll
 
