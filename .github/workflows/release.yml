@@ -1,0 +1,173 @@
+name: Release
+
+# Final release  -> push a tag like v1.2.3
+# Nightly build  -> push to main (or run manually); release name carries the short SHA
+on:
+  push:
+    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned FanControl release used to fetch FanControl.Plugins.dll (the SDK
+  # assembly the plugins compile against). Override in repo Settings ->
+  # Secrets and variables -> Actions -> Variables: FANCONTROL_VERSION.
+  FANCONTROL_VERSION: ${{ vars.FANCONTROL_VERSION || 'V269' }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      release_name: ${{ steps.ver.outputs.release_name }}
+      prerelease: ${{ steps.ver.outputs.prerelease }}
+      is_release: ${{ steps.ver.outputs.is_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "version=${TAG#v}"        >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}"              >> "$GITHUB_OUTPUT"
+            echo "release_name=${TAG}"     >> "$GITHUB_OUTPUT"
+            echo "prerelease=false"        >> "$GITHUB_OUTPUT"
+            echo "is_release=true"         >> "$GITHUB_OUTPUT"
+          else
+            SHA=$(git rev-parse --short HEAD)
+            BASE=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+            BASE="${BASE#v}"; BASE="${BASE:-0.0.0}"
+            echo "version=${BASE}-dev.${SHA}"          >> "$GITHUB_OUTPUT"
+            echo "tag=nightly"                          >> "$GITHUB_OUTPUT"
+            echo "release_name=Nightly build (${SHA})"  >> "$GITHUB_OUTPUT"
+            echo "prerelease=true"                      >> "$GITHUB_OUTPUT"
+            echo "is_release=false"                     >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch FanControl.Plugins.dll
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/Rem0o/FanControl.Releases/releases/tags/${FANCONTROL_VERSION}" \
+            | jq -r '.assets[] | select(.name|test("\\.zip$")) | select(.name|test("net_4_8")|not) | .browser_download_url' \
+            | head -n1)
+          test -n "$URL" || { echo "No matching .zip asset for ${FANCONTROL_VERSION}"; exit 1; }
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o fc.zip
+          mkdir -p extract lib
+          unzip -oq fc.zip -d extract
+          DLL=$(find extract -name 'FanControl.Plugins.dll' | head -n1)
+          test -n "$DLL" || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
+          cp "$DLL" lib/FanControl.Plugins.dll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fancontrol-sdk
+          path: lib/FanControl.Plugins.dll
+          retention-days: 1
+
+  build:
+    needs: setup
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin:
+          - FanControl.OpenRGB
+          - FanControl.Mqtt
+          - FanControl.SystemMetrics
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore SDK assembly
+        uses: actions/download-artifact@v4
+        with:
+          name: fancontrol-sdk
+          path: lib
+
+      - name: Build ${{ matrix.plugin }}
+        run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ needs.setup.outputs.version }}
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $dll = "${{ matrix.plugin }}/bin/Release/net8.0-windows/${{ matrix.plugin }}.dll"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path $dll -DestinationPath "dist/${{ matrix.plugin }}-${{ needs.setup.outputs.version }}.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}
+          path: dist/*.zip
+          retention-days: 1
+
+  release:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect plugin zips
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: FanControl.*
+          merge-multiple: true
+
+      - name: Generate changelog
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            PREV=$(git tag -l 'v*' --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n1 || true)
+          else
+            PREV=$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)
+          fi
+          if [ -n "$PREV" ]; then RANGE="${PREV}..HEAD"; echo "Changes since ${PREV}" ; else RANGE=""; fi
+
+          PLUGINS="FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics"
+          {
+            if [ -n "$PREV" ]; then echo "## Changes since ${PREV}"; else echo "## Changes"; fi
+            echo
+            for p in $PLUGINS; do
+              LOG=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- "$p")
+              if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
+            done
+            OTHER=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- . \
+              ':(exclude)FanControl.OpenRGB' ':(exclude)FanControl.Mqtt' ':(exclude)FanControl.SystemMetrics')
+            if [ -n "$OTHER" ]; then printf '### Repository / shared\n%s\n\n' "$OTHER"; fi
+          } > changelog.md
+          cat changelog.md
+
+      - name: Reset nightly release
+        if: needs.setup.outputs.is_release == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete nightly --cleanup-tag --yes || true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.setup.outputs.tag }}
+          name: ${{ needs.setup.outputs.release_name }}
+          body_path: changelog.md
+          prerelease: ${{ needs.setup.outputs.prerelease }}
+          target_commitish: ${{ github.sha }}
+          files: dist/*.zip
