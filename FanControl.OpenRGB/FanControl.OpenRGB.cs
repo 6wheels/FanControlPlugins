@@ -63,7 +63,6 @@ namespace FanControl.OpenRGB
         _devices = _client.GetAllControllerData();
 
         _physicalBuffers = new Color[_devices.Length][];
-        // LOG 1: DEVICE INVENTORY
         Log($"Connected. {_devices.Length} detected devices:");
         for (int i = 0; i < _devices.Length; i++)
         {
@@ -97,8 +96,6 @@ namespace FanControl.OpenRGB
             : ruleConf.Id;
 
         var controlSensor = new OpenRgbControlSensor(safeId, ruleConf.Name);
-
-        // Much cleaner: we just pass the config object and the sensor
         var binding = new RuleBinding(ruleConf, controlSensor);
 
         _bindings.Add(binding);
@@ -110,7 +107,7 @@ namespace FanControl.OpenRGB
 
     private void RenderLoop_Tick(object? state)
     {
-      // SAFETY 1: Prevent snowballing of threads
+      // Reentrancy guard: timer fires every ~33ms and USB commits can be slow.
       if (_isRendering) return;
       _isRendering = true;
 
@@ -121,7 +118,7 @@ namespace FanControl.OpenRGB
 
         _frameCount++;
 
-        // SAFETY 2: List who really needs to be updated this frame
+        // Track which devices are touched this frame to avoid redundant USB writes.
         bool[] deviceNeedsUpdate = new bool[_devices.Length];
 
         // --- STARTUP ANIMATION ---
@@ -146,13 +143,13 @@ namespace FanControl.OpenRGB
           float val = binding.Control.Value ?? 0f;
           if (val < binding.Config.ActivationThreshold) continue;
 
-          float valueToPass = val;
+          // Re-scale so effects always receive 0–100 relative to the activation range,
+          // not the raw sensor value. A threshold of 75 means raw=75 → effect sees 0, raw=100 → 100.
           float range = 100f - binding.Config.ActivationThreshold;
-          valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
+          float valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
 
           float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
 
-          // Apply the effect to our canvas in memory
           binding.Config.Effect?.Apply(
               _devices,
               binding.Config.DeviceRegex,
@@ -164,7 +161,6 @@ namespace FanControl.OpenRGB
               _physicalBuffers
           );
 
-          // Mark devices targeted by the Rule as "Modified"
           for (int i = 0; i < _devices.Length; i++)
           {
             if (Regex.IsMatch(_devices[i].Name ?? "", binding.Config.DeviceRegex))
@@ -193,11 +189,8 @@ namespace FanControl.OpenRGB
 
     private void Log(string message, LogLevel level = LogLevel.Info)
     {
-      // We write to the FanControl log only if the message level is greater than or equal 
-      // to the level requested in the config.
       if (level >= _config.LogLevel)
       {
-        // We add a visual prefix if it is an error or debug
         string prefix = $"[{level.ToString().ToUpper()}]";
         logger.Log($"[OpenRGB] {prefix} {message}");
       }

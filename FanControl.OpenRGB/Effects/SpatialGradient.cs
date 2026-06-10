@@ -6,8 +6,8 @@ namespace FanControl.OpenRGB.Effects
 {
   public class SpatialGradientEffect : BaseRgbEffect
   {
-    public string ColorMinHex { get; set; } = "#00FF00"; // Color at the left edge of the gradient
-    public string ColorMaxHex { get; set; } = "#0000FF"; // Color at the right edge of the gradient
+    public string ColorMinHex { get; set; } = "#00FF00";
+    public string ColorMaxHex { get; set; } = "#0000FF";
 
     protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
@@ -37,7 +37,6 @@ namespace FanControl.OpenRGB.Effects
                   string ledName = device.Leds[ledOffset + ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
-                    // Determine the horizontal position ratio within the matrix row.
                     float ratio = width > 1 ? (float)x / (width - 1) : 0f;
 
                     Color gradColor = Interpolate(cMin, cMax, ratio);

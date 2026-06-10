@@ -40,7 +40,6 @@ namespace FanControl.OpenRGB
             isConnected = true;
             Console.WriteLine("✅ Connected to OpenRGB server.");
 
-            // VISUAL FEEDBACK: All setup turns Navy Blue (R:0, G:50, B:150)
             SetAllHardwareColor(client, new Color(0, 50, 150));
             Console.WriteLine("💡 Hardware control confirmed (Setup lit in Blue).");
 
@@ -162,7 +161,7 @@ namespace FanControl.OpenRGB
         Console.WriteLine($"\n    ▶ ZONES ({device.Zones.Length}):");
         Console.ResetColor();
 
-        int ledGlobalOffset = 0; // Used to make the correspondence between zone LEDs and the global array
+        int ledGlobalOffset = 0; // LEDs are stored in one flat device array; track offset per zone.
 
         for (int z = 0; z < device.Zones.Length; z++)
         {
@@ -173,13 +172,11 @@ namespace FanControl.OpenRGB
 
           Console.WriteLine($"        Type: {zone.Type} | LED Count: {zone.LedCount}");
 
-          // If the zone is a matrix (e.g.: Keyboard), we display its dimensions
           if (zone.MatrixMap != null)
           {
             Console.WriteLine($"        Matrix Map: {zone.MatrixMap.Width}x{zone.MatrixMap.Height}");
           }
 
-          // Details of LEDs in this zone
           Console.ForegroundColor = ConsoleColor.DarkGray;
           Console.WriteLine("        LED Details :");
           for (int l = 0; l < zone.LedCount; l++)
@@ -189,7 +186,6 @@ namespace FanControl.OpenRGB
               var led = device.Leds[ledGlobalOffset];
               var color = device.Colors[ledGlobalOffset];
 
-              // We display the global index, the LED name, and its current color
               Console.WriteLine($"          [{ledGlobalOffset,3}] {led.Name,-25} -> RGB({color.R,3}, {color.G,3}, {color.B,3})");
 
               ledGlobalOffset++;
@@ -215,16 +211,14 @@ namespace FanControl.OpenRGB
 
       try
       {
-        // Discover all available effect classes dynamically so the toolkit stays in sync with code.
-        // This reflection logic finds concrete subclasses of BaseRgbEffect and avoids abstract base types.
+        // Reflection keeps the effect list in sync without manual registration.
         effectTypes = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
             .ToList();
       }
       catch (ReflectionTypeLoadException ex)
       {
-        // If the FanControl DLL is missing (which is normal in Console mode),
-        // we retrieve only the classes that managed to load (our Effects).
+        // FanControl.dll is absent in console mode; partial load is normal — use whatever resolved.
         effectTypes = ex.Types
             .Where(t => t != null && t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
             .Cast<Type>()
@@ -235,7 +229,6 @@ namespace FanControl.OpenRGB
       Console.WriteLine("🧪 EFFECTS TESTER (INTROSPECTION)");
       Console.WriteLine("===========================================\n");
 
-      // ... (The rest of your method remains exactly the same)
       for (int i = 0; i < effectTypes.Count; i++)
       {
         Console.WriteLine($"[{i + 1}] {effectTypes[i].Name}");
@@ -246,7 +239,6 @@ namespace FanControl.OpenRGB
       var input = Console.ReadKey(true);
       if (input.Key == ConsoleKey.Escape) return;
 
-      // If the user types a digit corresponding to an effect
       if (int.TryParse(input.KeyChar.ToString(), out int selection) && selection >= 1 && selection <= effectTypes.Count)
       {
         RunEffectTest(client, effectTypes[selection - 1]);
@@ -258,10 +250,9 @@ namespace FanControl.OpenRGB
       Console.Clear();
       Console.WriteLine($"=== CONFIGURATION OF: {effectType.Name} ===\n");
 
-      // We instantiate the class dynamically
       var effect = (BaseRgbEffect)Activator.CreateInstance(effectType)!;
 
-      // INTROSPECTION: We retrieve only the properties specific to this effect (DeclaredOnly)
+      // DeclaredOnly excludes inherited BaseRgbEffect properties (e.g. ModulateByValue) from the prompt.
       var properties = effectType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 
       foreach (var prop in properties)
@@ -379,7 +370,6 @@ namespace FanControl.OpenRGB
 
             if (processKey && !isAutoValue)
             {
-              // Manual value adjustment is only active when the user explicitly chooses a fixed number.
               if (incoming.Key == ConsoleKey.Add || incoming.Key == ConsoleKey.OemPlus)
               {
                 fixedValue = Math.Clamp(fixedValue + 1f, 0f, 100f);
@@ -450,7 +440,6 @@ namespace FanControl.OpenRGB
         var devices = client.GetAllControllerData();
         for (int i = 0; i < devices.Length; i++)
         {
-          // We fill an array with the requested color for each LED of the device
           var colors = Enumerable.Repeat(color, devices[i].Leds.Length).ToArray();
           client.UpdateLeds(i, colors);
         }

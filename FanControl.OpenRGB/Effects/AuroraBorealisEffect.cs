@@ -42,13 +42,11 @@ namespace FanControl.OpenRGB.Effects
       float time = frameCount * Speed;
       bool isVertical = Direction == AuroraDirection.Vertical;
 
-      // Compute the dynamic intensity (0.0 to 1.0) based on the FanControl sensor
       float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)
       {
-        // Zone filter (ex: "Keyboard")
         if (string.IsNullOrEmpty(zoneRegex) || Regex.IsMatch(zone.Name, zoneRegex))
         {
           // === 2D Device ===
@@ -66,20 +64,16 @@ namespace FanControl.OpenRGB.Effects
                 {
                   string ledName = device.Leds[ledOffset + ledIndex].Name;
 
-                  // LED filter (ex: "^(Key: W|Key: A)$")
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
-                    // Compute the wave color mathematically
                     Color waveColor = CalculateAuroraColor(x, y, time, c1, c2, c3, isVertical);
 
-                    // Apply the intensity
                     Color targetColor = new Color(
                         (byte)(waveColor.R * intensity),
                         (byte)(waveColor.G * intensity),
                         (byte)(waveColor.B * intensity)
                     );
 
-                    // Fade smoothly from the previous state into the new aurora color.
                     buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, transitionSpeed);
                   }
                 }
@@ -116,7 +110,8 @@ namespace FanControl.OpenRGB.Effects
     {
       double mainWave, secondaryWave;
 
-      // Axes inversion according to the chosen direction
+      // Two offset sine waves on perpendicular axes create an organic interference pattern.
+      // The 0.7x speed difference on the secondary wave prevents a static diagonal grid.
       if (isVertical)
       {
         mainWave = Math.Sin(y * Scale + time);
@@ -128,8 +123,10 @@ namespace FanControl.OpenRGB.Effects
         secondaryWave = Math.Sin(y * Scale - time * 0.7f);
       }
 
+      // Sum of two [-1,1] waves → [-2,2]; normalize to [0,1].
       float factor = (float)((mainWave + secondaryWave + 2.0) / 4.0);
 
+      // Split the 3-color ramp at the midpoint: c1→c2 in the lower half, c2→c3 in the upper half.
       if (factor < 0.5f) return LerpColor(c1, c2, factor * 2f);
       else return LerpColor(c2, c3, (factor - 0.5f) * 2f);
     }

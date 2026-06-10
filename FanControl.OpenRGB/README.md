@@ -71,7 +71,7 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 ### Effects Types
 - `Static`: Requires `ColorHex`. Displays a solid color, optionally dimmed by the current value when `ModulateByValue` is true.
 - `Gradient`: Requires `ColorMinHex` and `ColorMaxHex`. Colors interpolate between minimum and maximum values based on the current value.
-- `Blink`: Requires `Color1Hex`, `Color2Hex`, and `BlinkIntervalFrames`. Alternates between two colors at the configured interval.
+- `Blink`: Requires `Color1Hex` and `Color2Hex`. `MinBlinkIntervalFrames` and `MaxBlinkIntervalFrames` set the speed range (in frames); when `ModulateByValue` is true, blink speed scales with the sensor value.
 - `Breathing`: Requires `BaseColorHex`, `PeakColorHex`, `MinSpeed`, and `MaxSpeed`. Creates a smooth pulsating fade whose speed increases with the current value.
 - `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, `Speed`, `Scale`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
 - `SpatialGradient`: Requires `ColorMinHex` and `ColorMaxHex`. Draws a left-to-right gradient across a 1D strip or 2D matrix.

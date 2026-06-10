@@ -63,6 +63,7 @@ namespace FanControl.OpenRGB.Effects
 
           if (targetLeds.Count > 0)
           {
+            // Ensures consistent top-to-bottom, left-to-right fill order across 1D and 2D zones.
             targetLeds.Sort((a, b) =>
             {
               int rowCompare = a.Row.CompareTo(b.Row);
@@ -72,6 +73,7 @@ namespace FanControl.OpenRGB.Effects
             int targetCount = targetLeds.Count;
             int fillCount = (int)Math.Round(fillRatio * targetCount);
             fillCount = Math.Clamp(fillCount, 0, targetCount);
+            // Guard: float rounding can leave the last LED unfilled at exactly 100%.
             if (fillRatio >= 0.9999f) fillCount = targetCount;
 
             for (int i = 0; i < targetCount; i++)

@@ -62,6 +62,7 @@ namespace FanControl.OpenRGB.Effects
           {
             float fillPosition = valueRatio * targetLeds.Count;
             int filledCount = Math.Clamp((int)Math.Floor(fillPosition), 0, targetLeds.Count);
+            // Soft glow region: proportional to strip length, clamped to 2–5 LEDs.
             float edgeWidth = Math.Clamp(targetLeds.Count / 4f, 2f, 5f);
 
             for (int i = 0; i < targetLeds.Count; i++)
@@ -69,10 +70,12 @@ namespace FanControl.OpenRGB.Effects
               float weight;
               if (i < filledCount)
               {
+                // Fully inside the fill → full brightness (ColorMaxHex).
                 weight = 1f;
               }
               else
               {
+                // Distance past the fill front; +0.5 centers the glow on the boundary pixel.
                 float distance = i - fillPosition + 0.5f;
                 weight = Math.Clamp(1f - distance / edgeWidth, 0f, 1f);
               }
