@@ -31,7 +31,7 @@ jobs:
       prerelease: ${{ steps.ver.outputs.prerelease }}
       is_release: ${{ steps.ver.outputs.is_release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Determine version
         id: ver
@@ -72,7 +72,7 @@ jobs:
           unzip -oq fc.zip 'FanControl.Plugins.dll' -d lib
           test -f lib/FanControl.Plugins.dll || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: fancontrol-sdk
           path: lib/FanControl.Plugins.dll
@@ -89,14 +89,14 @@ jobs:
           - FanControl.Mqtt
           - FanControl.SystemMetrics
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore SDK assembly
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fancontrol-sdk
           path: lib
@@ -111,7 +111,7 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Compress-Archive -Path $dll -DestinationPath "dist/${{ matrix.plugin }}-${{ needs.setup.outputs.version }}.zip" -Force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.plugin }}
           path: dist/*.zip
@@ -121,12 +121,13 @@ jobs:
     needs: [setup, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # full history needed below for the changelog
 
       - name: Collect plugin zips
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: FanControl.*
