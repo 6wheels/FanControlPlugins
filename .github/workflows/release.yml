@@ -144,15 +144,19 @@ jobs:
           if [ -n "$PREV" ]; then RANGE="${PREV}..HEAD"; echo "Changes since ${PREV}" ; else RANGE=""; fi
 
           PLUGINS="FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics"
+          # Drop project-management / housekeeping commits (matched at the
+          # start of the subject so real features aren't filtered by accident).
+          EXCLUDE='^- (initial commit|bump(ed|ing)?( version)?|version bump|release( [0-9v])|prepare release|updated? changelog|merge |(chore|ci|build|docs|style)(\(.*\))?:)'
           {
             if [ -n "$PREV" ]; then echo "## Changes since ${PREV}"; else echo "## Changes"; fi
             echo
             for p in $PLUGINS; do
-              LOG=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- "$p")
+              LOG=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- "$p" | grep -viE "$EXCLUDE" || true)
               if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
             done
             OTHER=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- . \
-              ':(exclude)FanControl.OpenRGB' ':(exclude)FanControl.Mqtt' ':(exclude)FanControl.SystemMetrics')
+              ':(exclude)FanControl.OpenRGB' ':(exclude)FanControl.Mqtt' ':(exclude)FanControl.SystemMetrics' \
+              | grep -viE "$EXCLUDE" || true)
             if [ -n "$OTHER" ]; then printf '### Repository / shared\n%s\n\n' "$OTHER"; fi
           } > changelog.md
           cat changelog.md
