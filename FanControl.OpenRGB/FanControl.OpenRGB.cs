@@ -15,6 +15,8 @@ namespace FanControl.OpenRGB
     private OpenRgbClient? _client;
     private Timer? _renderTimer;
     private Device[] _devices = [];
+    private Color[][]? _physicalBuffers;
+    private bool _isRendering = false;
 
     private OpenRgbConfig _config = new();
     private readonly string _configPath = "OpenRGBConfig.json";
@@ -60,11 +62,13 @@ namespace FanControl.OpenRGB
         _client.Connect();
         _devices = _client.GetAllControllerData();
 
+        _physicalBuffers = new Color[_devices.Length][];
         // LOG 1: DEVICE INVENTORY
         Log($"Connected. {_devices.Length} detected devices:");
         for (int i = 0; i < _devices.Length; i++)
         {
           Log($"Device [{i}] : '{_devices[i].Name}', Available Zones: {_devices[i].Zones})");
+          _physicalBuffers[i] = _devices[i].Colors;
         }
 
         if (_config.Startup != null && _config.Startup.Effect != null)
@@ -106,107 +110,84 @@ namespace FanControl.OpenRGB
 
     private void RenderLoop_Tick(object? state)
     {
-      if (File.Exists(_lockFilePath))
+      // SAFETY 1: Prevent snowballing of threads
+      if (_isRendering) return;
+      _isRendering = true;
+
+      try
       {
-        if (_client != null && _client.Connected)
+        if (File.Exists(_lockFilePath)) return; // Pause DevKit
+        if (_client == null || !_client.Connected || _physicalBuffers == null) return;
+
+        _frameCount++;
+
+        // SAFETY 2: List who really needs to be updated this frame
+        bool[] deviceNeedsUpdate = new bool[_devices.Length];
+
+        // --- STARTUP ANIMATION ---
+        if (_config.Startup != null && _config.Startup.Effect != null)
         {
-          _client.Dispose();
-          _client = null;
-          Log("FanControl plugin paused (DevKit mode active).", LogLevel.Info);
+          if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
+          {
+            _config.Startup.Effect.Apply(_devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, _physicalBuffers);
+            for (int i = 0; i < _devices.Length; i++) _client.UpdateLeds(i, _physicalBuffers[i]);
+            return;
+          }
+          else if (_startupStopwatch.IsRunning)
+          {
+            _startupStopwatch.Stop();
+            Log("Startup animation complete. Switching to layer stack.", LogLevel.Info);
+          }
         }
-        return;
+
+        // --- LAYER STACKING ---
+        foreach (var binding in _bindings)
+        {
+          float val = binding.Control.Value ?? 0f;
+          if (val < binding.Config.ActivationThreshold) continue;
+
+          float valueToPass = val;
+          float range = 100f - binding.Config.ActivationThreshold;
+          valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
+
+          float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
+
+          // Apply the effect to our canvas in memory
+          binding.Config.Effect?.Apply(
+              _devices,
+              binding.Config.DeviceRegex,
+              binding.Config.ZoneRegex,
+              binding.Config.LedRegex,
+              valueToPass,
+              _frameCount,
+              speedToUse,
+              _physicalBuffers
+          );
+
+          // Mark devices targeted by the Rule as "Modified"
+          for (int i = 0; i < _devices.Length; i++)
+          {
+            if (Regex.IsMatch(_devices[i].Name ?? "", binding.Config.DeviceRegex))
+            {
+              deviceNeedsUpdate[i] = true;
+            }
+          }
+        }
+
+        // --- OPTIMIZED HARDWARE COMMIT ---
+        for (int i = 0; i < _devices.Length; i++)
+        {
+          // Only push to USB if a layer was targeting this device.
+          if (deviceNeedsUpdate[i])
+          {
+            _client.UpdateLeds(i, _physicalBuffers[i]);
+          }
+        }
       }
-      else if (_client == null || !_client.Connected)
+      finally
       {
-        // Existing reconnection logic... (Keep your code here)
-      }
-
-      if (_client == null || !_client.Connected) return;
-
-      _frameCount++;
-      bool shouldLogThisFrame = (_frameCount % (_config.Framerate * 2) == 0);
-
-      // ==========================================
-      // 1. INITIALIZE VIRTUAL BUFFERS
-      // ==========================================
-      // Capture the current physical hardware state. This serves as the basis
-      // for the Lerp (fade) to work smoothly across frames.
-      Color[][] frameBuffers = new Color[_devices.Length][];
-      for (int i = 0; i < _devices.Length; i++)
-      {
-        frameBuffers[i] = _client.GetControllerData(i).Colors;
-      }
-
-      // ==========================================
-      // 2. STARTUP ANIMATION (Highest priority)
-      // ==========================================
-      if (_config.Startup != null && _config.Startup.Effect != null)
-      {
-        if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
-        {
-          _config.Startup.Effect.Apply(_devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, frameBuffers);
-
-          // Immediate hardware commit
-          for (int i = 0; i < _devices.Length; i++) _client.UpdateLeds(i, frameBuffers[i]);
-          return;
-        }
-        else if (_startupStopwatch.IsRunning)
-        {
-          _startupStopwatch.Stop();
-          Log("Startup animation finished. Switching to layers.", LogLevel.Info);
-        }
-      }
-
-      // ==========================================
-      // 3. LAYER STACKING (Z-Index)
-      // ==========================================
-      foreach (var binding in _bindings)
-      {
-        float val = binding.Control.Value ?? 0f;
-
-        // If the sensor is below threshold, this layer is INVISIBLE (transparent).
-        // Skip directly to the next layer.
-        if (val < binding.Config.ActivationThreshold) continue;
-
-        // If active, remap the value from threshold to 0-100%
-        // starting at the moment it crosses the threshold.
-        float valueToPass;
-        float range = 100f - binding.Config.ActivationThreshold;
-        if (range > 0)
-        {
-          valueToPass = Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f);
-        }
-        else
-        {
-          valueToPass = 100f;
-        }
-
-        float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
-
-        if (shouldLogThisFrame)
-        {
-          Log($"Layer '{binding.Config.Name}' | Val: {val:F1} (Mapped: {valueToPass:F1}) | Threshold: {binding.Config.ActivationThreshold}", LogLevel.Debug);
-        }
-
-        // Apply the effect to our virtual in-memory buffers
-        binding.Config.Effect?.Apply(
-            _devices,
-            binding.Config.DeviceRegex,
-            binding.Config.ZoneRegex,
-            binding.Config.LedRegex,
-            valueToPass,
-            _frameCount,
-            speedToUse,
-            frameBuffers
-        );
-      }
-
-      // ==========================================
-      // 4. HARDWARE COMMIT (ONE USB CALL PER DEVICE)
-      // ==========================================
-      for (int i = 0; i < _devices.Length; i++)
-      {
-        _client.UpdateLeds(i, frameBuffers[i]);
+        // Always release the lock to allow the next frame.
+        _isRendering = false;
       }
     }
 
