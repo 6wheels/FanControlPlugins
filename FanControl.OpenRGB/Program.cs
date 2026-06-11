@@ -1,15 +1,13 @@
 using System.Globalization;
 using System.Reflection;
 using FanControl.OpenRGB.Effects;
+using FanControl.OpenRGB.Toolkit;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB
 {
   class Program
   {
-    // Path of the lock file shared with the plugin
-    private static string LockFilePath => Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
-
     static void Main(string[] args)
     {
       Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -17,16 +15,15 @@ namespace FanControl.OpenRGB
       Console.WriteLine("⚙️  OPENRGB PLUGIN - DEV TOOLKIT");
       Console.WriteLine("===========================================\n");
 
-      // 1. Create the Lock file to tell the FanControl plugin to pause
-      try { File.Create(LockFilePath).Dispose(); } catch { }
+      LockFile.Create();
       Console.WriteLine("🔒 Lock file created. FanControl is paused.");
 
-      OpenRgbClient? client = null;
+      IOpenRgbBroker? broker = null;
 
       try
       {
         string ip = "127.0.0.1";
-        int port = 6742; // Default port of OpenRGB Daemon
+        int port = 6742;
         bool isConnected = false;
 
         // --- CONNECTION LOOP ---
@@ -35,15 +32,16 @@ namespace FanControl.OpenRGB
           try
           {
             Console.WriteLine($"\nAttempting connection to {ip}:{port}...");
-            client = new OpenRgbClient(name: "Console Toolkit", ip: ip, port: port);
+            var client = new OpenRgbClient(name: "Console Toolkit", ip: ip, port: port);
             client.Connect();
+            broker = new OpenRgbBroker(client);
             isConnected = true;
             Console.WriteLine("✅ Connected to OpenRGB server.");
 
-            SetAllHardwareColor(client, new Color(0, 50, 150));
+            FrameRenderer.SetAllColor(broker, new Color(0, 50, 150));
             Console.WriteLine("💡 Hardware control confirmed (Setup lit in Blue).");
 
-            Thread.Sleep(1000); // Small pause for readability before displaying the menu
+            Thread.Sleep(1000);
           }
           catch (Exception ex)
           {
@@ -56,7 +54,7 @@ namespace FanControl.OpenRGB
 
             if (key.Key == ConsoleKey.Escape || char.ToUpper(key.KeyChar) == 'N')
             {
-              return; // Exit Main() and go directly to the finally block
+              return;
             }
             else if (char.ToUpper(key.KeyChar) == 'Y')
             {
@@ -94,8 +92,8 @@ namespace FanControl.OpenRGB
 
           switch (input.KeyChar)
           {
-            case '1': RunHardwareScanner(client!); break;
-            case '2': TestEffectsMenu(client!); break;
+            case '1': RunHardwareScanner(broker!); break;
+            case '2': TestEffectsMenu(broker!); break;
           }
         }
       }
@@ -108,22 +106,20 @@ namespace FanControl.OpenRGB
       }
       finally
       {
-        // We make sure to turn off the debug blue (or turn everything off) before returning control
-        if (client != null && client.Connected)
+        if (broker != null && broker.Connected)
         {
-          SetAllHardwareColor(client, new Color(0, 0, 0)); // Black (Off)
-          client.Dispose();
+          FrameRenderer.SetAllColor(broker, new Color(0, 0, 0));
+          broker.Dispose();
         }
 
-        // Guaranteed deletion of Lock file on exit
-        if (File.Exists(LockFilePath)) File.Delete(LockFilePath);
+        LockFile.Delete();
         Console.WriteLine("\n🔓 Lock file deleted. FanControl resumes control.");
       }
     }
 
-    private static void RunHardwareScanner(OpenRgbClient client)
+    private static void RunHardwareScanner(IOpenRgbBroker broker)
     {
-      var devices = client.GetAllControllerData();
+      var devices = broker.GetAllControllerData();
       Console.WriteLine("\n");
       Console.WriteLine($"🔍 HARDWARE SCANNER - {devices.Length} DEVICE(S) FOUND");
       Console.WriteLine("--------------------------------------------\n");
@@ -132,7 +128,6 @@ namespace FanControl.OpenRGB
       {
         var device = devices[i];
 
-        // --- 1. DEVICE INFO ---
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"[{i}] DEVICE: {device.Name}");
         Console.ResetColor();
@@ -144,7 +139,6 @@ namespace FanControl.OpenRGB
         Console.WriteLine($"    Location    : {device.Location}");
         Console.WriteLine($"    Total LEDs  : {device.Leds.Length}");
 
-        // --- 2. AVAILABLE MODES ---
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.WriteLine($"\n    ▶ MODES ({device.Modes.Length}):");
         Console.ResetColor();
@@ -156,12 +150,11 @@ namespace FanControl.OpenRGB
           Console.WriteLine($"      {activeTag} [{m}] {mode.Name,-20} (Speed: {mode.SpeedMin}-{mode.SpeedMax}, Flags: {mode.Flags})");
         }
 
-        // --- 3. ZONES AND LEDS ---
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"\n    ▶ ZONES ({device.Zones.Length}):");
         Console.ResetColor();
 
-        int ledGlobalOffset = 0; // LEDs are stored in one flat device array; track offset per zone.
+        int ledGlobalOffset = 0;
 
         for (int z = 0; z < device.Zones.Length; z++)
         {
@@ -203,27 +196,11 @@ namespace FanControl.OpenRGB
       while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
     }
 
-    private static void TestEffectsMenu(OpenRgbClient client)
+    private static void TestEffectsMenu(IOpenRgbBroker broker)
     {
       Console.Clear();
 
-      List<Type> effectTypes = new List<Type>();
-
-      try
-      {
-        // Reflection keeps the effect list in sync without manual registration.
-        effectTypes = Assembly.GetExecutingAssembly().GetTypes()
-            .Where(t => t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
-            .ToList();
-      }
-      catch (ReflectionTypeLoadException ex)
-      {
-        // FanControl.dll is absent in console mode; partial load is normal — use whatever resolved.
-        effectTypes = ex.Types
-            .Where(t => t != null && t.IsSubclassOf(typeof(BaseRgbEffect)) && !t.IsAbstract)
-            .Cast<Type>()
-            .ToList();
-      }
+      var effectTypes = EffectDiscovery.GetConcreteEffectTypes(Assembly.GetExecutingAssembly()).ToList();
 
       Console.WriteLine("===========================================");
       Console.WriteLine("🧪 EFFECTS TESTER (INTROSPECTION)");
@@ -241,18 +218,17 @@ namespace FanControl.OpenRGB
 
       if (int.TryParse(input.KeyChar.ToString(), out int selection) && selection >= 1 && selection <= effectTypes.Count)
       {
-        RunEffectTest(client, effectTypes[selection - 1]);
+        RunEffectTest(broker, effectTypes[selection - 1]);
       }
     }
 
-    private static void RunEffectTest(OpenRgbClient client, Type effectType)
+    private static void RunEffectTest(IOpenRgbBroker broker, Type effectType)
     {
       Console.Clear();
       Console.WriteLine($"=== CONFIGURATION OF: {effectType.Name} ===\n");
 
       var effect = (BaseRgbEffect)Activator.CreateInstance(effectType)!;
 
-      // DeclaredOnly excludes inherited BaseRgbEffect properties (e.g. ModulateByValue) from the prompt.
       var properties = effectType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 
       foreach (var prop in properties)
@@ -268,12 +244,10 @@ namespace FanControl.OpenRGB
             object convertedValue;
             if (prop.PropertyType.IsEnum)
             {
-              // Handles enums like AuroraDirection
               convertedValue = Enum.Parse(prop.PropertyType, userInput, true);
             }
             else
             {
-              // Handles floats robustly (accepts period or comma)
               string safeInput = userInput.Replace(",", ".");
               convertedValue = Convert.ChangeType(safeInput, prop.PropertyType, CultureInfo.InvariantCulture);
             }
@@ -302,7 +276,6 @@ namespace FanControl.OpenRGB
 
       Console.Write("\n- Simulated sensor value (0-100, or 'auto') [Default: auto] : ");
       string? valInput = Console.ReadLine();
-      // Leaving the value blank or typing "auto" enables a smooth auto-oscillating driver value.
       bool isAutoValue = string.IsNullOrWhiteSpace(valInput) || valInput.Trim().ToLower() == "auto";
       float fixedValue = 100f;
       if (!isAutoValue)
@@ -317,7 +290,7 @@ namespace FanControl.OpenRGB
       Console.WriteLine("\n▶ Starting render loop... Press [ESC] to stop. (+/- adjust manual value)");
       Console.WriteLine($"  Active filters -> Device: {deviceRegex}, Zone: {(zoneRegex ?? "all")}, LED: {(ledRegex ?? "all")}");
 
-      var devices = client.GetAllControllerData();
+      var devices = broker.GetAllControllerData();
       int frameCount = 0;
       DateTime lastManualAdjust = DateTime.MinValue;
       DateTime holdStartTime = DateTime.MinValue;
@@ -386,7 +359,6 @@ namespace FanControl.OpenRGB
               lastManualAdjust = now;
             }
 
-            // Remove any repeated identical adjust key events from the buffer.
             while (Console.KeyAvailable)
             {
               var extra = Console.ReadKey(true);
@@ -402,29 +374,18 @@ namespace FanControl.OpenRGB
           }
         }
 
-        if (shouldExit)
-        {
-          break;
-        }
+        if (shouldExit) break;
 
         if (heldAdjustKey.HasValue && DateTime.UtcNow - lastManualAdjust > TimeSpan.FromMilliseconds(350))
         {
           heldAdjustKey = null;
         }
 
-        float valToPass = isAutoValue
-            ? (50f + 50f * (float)Math.Sin(frameCount * 0.01))
-            : fixedValue;
+        float valToPass = isAutoValue ? AutoValueDriver.Compute(frameCount) : fixedValue;
 
         Console.Write($"\rMode: {(isAutoValue ? "auto  " : "manual")} | Value: {valToPass:F1}%   ");
 
-        // Pass valToPass, and force transitionSpeed to 1.0f for raw testing
-        effect.Apply(devices, deviceRegex, zoneRegex, ledRegex, valToPass, frameCount, 1.0f, frameBuffers);
-
-        for (int i = 0; i < devices.Length; i++)
-        {
-          client.UpdateLeds(i, frameBuffers[i]);
-        }
+        FrameRenderer.RenderAndFlush(effect, broker, devices, deviceRegex, zoneRegex, ledRegex, valToPass, frameCount, 1.0f, frameBuffers);
 
         frameCount++;
         Thread.Sleep(33);
@@ -432,20 +393,5 @@ namespace FanControl.OpenRGB
 
       Console.WriteLine();
     }
-
-    private static void SetAllHardwareColor(OpenRgbClient client, global::OpenRGB.NET.Color color)
-    {
-      try
-      {
-        var devices = client.GetAllControllerData();
-        for (int i = 0; i < devices.Length; i++)
-        {
-          var colors = Enumerable.Repeat(color, devices[i].Leds.Length).ToArray();
-          client.UpdateLeds(i, colors);
-        }
-      }
-      catch { }
-    }
-
   }
 }
