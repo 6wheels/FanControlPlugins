@@ -1,10 +1,14 @@
 name: Release
 
-# Final release  -> push a tag like v1.2.3
-# Nightly build  -> push to main (or run manually); release name carries the short SHA
+# Per-plugin releases for the monorepo.
+#   Final   -> push a tag  <Plugin>/v<semver>  e.g. FanControl.OpenRGB/v1.2.0
+#              Builds & releases ONLY that plugin; version comes from the tag.
+#   Nightly -> push to main / run manually. Builds ALL plugins into one
+#              rolling 'nightly' prerelease; each zip is versioned
+#              <plugin-last-version>-dev.<short-sha>.
 on:
   push:
-    tags: ['v*']
+    tags: ['*/v*']
     branches: [main]
   workflow_dispatch:
 
@@ -25,33 +29,42 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
-      tag: ${{ steps.ver.outputs.tag }}
-      release_name: ${{ steps.ver.outputs.release_name }}
-      prerelease: ${{ steps.ver.outputs.prerelease }}
-      is_release: ${{ steps.ver.outputs.is_release }}
+      mode: ${{ steps.plan.outputs.mode }}
+      plugins: ${{ steps.plan.outputs.plugins }}
+      plugin: ${{ steps.plan.outputs.plugin }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      release_name: ${{ steps.plan.outputs.release_name }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Determine version
-        id: ver
+      - name: Plan release
+        id: plan
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "version=${TAG#v}"        >> "$GITHUB_OUTPUT"
-            echo "tag=${TAG}"              >> "$GITHUB_OUTPUT"
-            echo "release_name=${TAG}"     >> "$GITHUB_OUTPUT"
-            echo "prerelease=false"        >> "$GITHUB_OUTPUT"
-            echo "is_release=true"         >> "$GITHUB_OUTPUT"
+          ALL='["FanControl.OpenRGB","FanControl.Mqtt","FanControl.SystemMetrics"]'
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"        # FanControl.OpenRGB/v1.2.0
+            PLUGIN="${TAG%/v*}"                   # FanControl.OpenRGB
+            VERSION="${TAG##*/v}"                 # 1.2.0
+            {
+              echo "mode=final"
+              echo "plugins=[\"${PLUGIN}\"]"
+              echo "plugin=${PLUGIN}"
+              echo "version=${VERSION}"
+              echo "tag=${TAG}"
+              echo "release_name=${PLUGIN} v${VERSION}"
+              echo "prerelease=false"
+            } >> "$GITHUB_OUTPUT"
           else
             SHA=$(git rev-parse --short HEAD)
-            BASE=$(git tag -l 'v*' --sort=-v:refname | head -n1)
-            BASE="${BASE#v}"; BASE="${BASE:-0.0.0}"
-            echo "version=${BASE}-dev.${SHA}"          >> "$GITHUB_OUTPUT"
-            echo "tag=nightly"                          >> "$GITHUB_OUTPUT"
-            echo "release_name=Nightly build (${SHA})"  >> "$GITHUB_OUTPUT"
-            echo "prerelease=true"                      >> "$GITHUB_OUTPUT"
-            echo "is_release=false"                     >> "$GITHUB_OUTPUT"
+            {
+              echo "mode=nightly"
+              echo "plugins=${ALL}"
+              echo "tag=nightly"
+              echo "release_name=Nightly build (${SHA})"
+              echo "prerelease=true"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fetch FanControl.Plugins.dll
@@ -84,12 +97,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        plugin:
-          - FanControl.OpenRGB
-          - FanControl.Mqtt
-          - FanControl.SystemMetrics
+        plugin: ${{ fromJSON(needs.setup.outputs.plugins) }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # tags needed to derive the nightly version
 
       - uses: actions/setup-dotnet@v5
         with:
@@ -101,15 +113,28 @@ jobs:
           name: fancontrol-sdk
           path: lib
 
+      - name: Resolve version
+        id: v
+        shell: bash
+        run: |
+          if [[ "${{ needs.setup.outputs.mode }}" == "final" ]]; then
+            VER="${{ needs.setup.outputs.version }}"
+          else
+            SHA=$(git rev-parse --short HEAD)
+            BASE=$(git tag -l "${{ matrix.plugin }}/v*" --sort=-v:refname | head -n1 | sed 's#.*/v##')
+            VER="${BASE:-0.0.0}-dev.${SHA}"
+          fi
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+
       - name: Build ${{ matrix.plugin }}
-        run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ needs.setup.outputs.version }}
+        run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ steps.v.outputs.version }}
 
       - name: Package
         shell: pwsh
         run: |
           $dll = "${{ matrix.plugin }}/bin/Release/net8.0-windows/${{ matrix.plugin }}.dll"
           New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path $dll -DestinationPath "dist/${{ matrix.plugin }}-${{ needs.setup.outputs.version }}.zip" -Force
+          Compress-Archive -Path $dll -DestinationPath "dist/${{ matrix.plugin }}-${{ steps.v.outputs.version }}.zip" -Force
 
       - uses: actions/upload-artifact@v7
         with:
@@ -123,8 +148,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
-          # full history needed below for the changelog
+          fetch-depth: 0  # full history needed for the changelog
 
       - name: Collect plugin zips
         uses: actions/download-artifact@v8
@@ -136,33 +160,35 @@ jobs:
       - name: Generate changelog
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            PREV=$(git tag -l 'v*' --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -n1 || true)
-          else
-            PREV=$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)
-          fi
-          if [ -n "$PREV" ]; then RANGE="${PREV}..HEAD"; echo "Changes since ${PREV}" ; else RANGE=""; fi
-
-          PLUGINS="FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics"
           # Drop project-management / housekeeping commits (matched at the
           # start of the subject so real features aren't filtered by accident).
           EXCLUDE='^- (initial commit|bump(ed|ing)?( version)?|version bump|release( [0-9v])|prepare release|updated? changelog|merge |(chore|ci|build|docs|style)(\(.*\))?:)'
+          changelog_for() {  # $1 = plugin dir, $2 = current tag to exclude (optional)
+            local p="$1" cur="${2:-}"
+            local prev range
+            prev=$(git tag -l "${p}/v*" --sort=-v:refname | grep -v "^${cur}$" | head -n1 || true)
+            if [ -n "$prev" ]; then range="${prev}..HEAD"; else range=""; fi
+            git log $range --no-merges --pretty='- %s (%h)' -- "$p" | grep -viE "$EXCLUDE" || true
+          }
           {
-            if [ -n "$PREV" ]; then echo "## Changes since ${PREV}"; else echo "## Changes"; fi
-            echo
-            for p in $PLUGINS; do
-              LOG=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- "$p" | grep -viE "$EXCLUDE" || true)
-              if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
-            done
-            OTHER=$(git log $RANGE --no-merges --pretty='- %s (%h)' -- . \
-              ':(exclude)FanControl.OpenRGB' ':(exclude)FanControl.Mqtt' ':(exclude)FanControl.SystemMetrics' \
-              | grep -viE "$EXCLUDE" || true)
-            if [ -n "$OTHER" ]; then printf '### Repository / shared\n%s\n\n' "$OTHER"; fi
+            if [[ "${{ needs.setup.outputs.mode }}" == "final" ]]; then
+              P="${{ needs.setup.outputs.plugin }}"
+              echo "## ${P} v${{ needs.setup.outputs.version }}"
+              echo
+              changelog_for "$P" "${{ needs.setup.outputs.tag }}"
+            else
+              echo "## Nightly build"
+              echo
+              for p in FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics; do
+                LOG=$(changelog_for "$p")
+                if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
+              done
+            fi
           } > changelog.md
           cat changelog.md
 
       - name: Reset nightly release
-        if: needs.setup.outputs.is_release == 'false'
+        if: needs.setup.outputs.mode == 'nightly'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release delete nightly --cleanup-tag --yes || true
