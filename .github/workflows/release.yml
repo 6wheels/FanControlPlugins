@@ -144,6 +144,18 @@ jobs:
       - name: Build ${{ matrix.plugin }}
         run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ steps.v.outputs.version }}
 
+      - name: Test ${{ matrix.plugin }}
+        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
+        run: dotnet test ${{ matrix.plugin }}.Tests/${{ matrix.plugin }}.Tests.csproj -c Release --collect:"XPlat Code Coverage" --results-directory coverage
+
+      - name: Upload coverage
+        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/**/coverage.cobertura.xml
+          flags: ${{ matrix.plugin }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Package
         shell: pwsh
         run: |

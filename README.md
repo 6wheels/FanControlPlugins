@@ -4,6 +4,14 @@ This repository is a monorepo containing custom plugins for [FanControl](https:/
 
 The build and deployment process is fully automated. Every new release is built via GitHub Actions, and each plugin is published as a `.zip` archive (containing the compiled `.dll`) on the Releases page.
 
+## Test Coverage
+
+| Plugin | Coverage |
+| --- | --- |
+| FanControl.OpenRGB | [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.OpenRGB)](https://codecov.io/gh/6wheels/FanControlPlugins) |
+| FanControl.Mqtt | — |
+| FanControl.SystemMetrics | — |
+
 ## Available Plugins
 
 * **[FanControl.OpenRGB](./FanControl.OpenRGB/README.md)**: Bridges FanControl and OpenRGB, allowing hardware temperatures and custom fan curves to drive RGB lighting dynamically (supports 2D Matrix keyboards, startup animations, and threshold blinking).
