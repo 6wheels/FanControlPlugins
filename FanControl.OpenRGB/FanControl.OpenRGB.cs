@@ -19,7 +19,7 @@ namespace FanControl.OpenRGB
     private bool _isRendering = false;
 
     private OpenRgbConfig _config = new();
-    private readonly string _configPath = "OpenRGBConfig.json";
+    private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
     private readonly string _lockFilePath = Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
     private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
