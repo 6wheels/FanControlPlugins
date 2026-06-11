@@ -129,6 +129,7 @@ jobs:
           LASTTAG=$(git tag -l "${P}/v*" --sort=-v:refname | head -n1 || true)
           BASE="${LASTTAG##*/v}"; BASE="${BASE:-0.0.0}"
           IFS=. read -r MA MI PA <<< "$BASE"
+          MA="${MA:-0}"; MI="${MI:-0}"; PA="${PA:-0}"
           RANGE=""; [ -n "$LASTTAG" ] && RANGE="${LASTTAG}..HEAD"
           LOG=$(git log $RANGE --pretty='%s%n%b' -- "$P")
           if grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE' <<< "$LOG"; then
@@ -177,11 +178,11 @@ jobs:
           # Drop project-management / housekeeping commits (matched at the
           # start of the subject so real features aren't filtered by accident).
           EXCLUDE='^- (initial commit|bump(ed|ing)?( version)?|version bump|release( [0-9v])|prepare release|updated? changelog|merge |(chore|ci|build|docs|style)(\(.*\))?:)'
-          changelog_for() {  # $1 = plugin dir, $2 = current tag to exclude (optional)
+          changelog_for() {  # $1 = plugin dir, $2 = current tag (final) or empty (nightly)
             local p="$1" cur="${2:-}"
-            local prev range
+            local end="${cur:-HEAD}" prev range
             prev=$(git tag -l "${p}/v*" --sort=-v:refname | grep -v "^${cur}$" | head -n1 || true)
-            if [ -n "$prev" ]; then range="${prev}..HEAD"; else range=""; fi
+            if [ -n "$prev" ]; then range="${prev}..${end}"; else range="${end}"; fi
             git log $range --no-merges --pretty='- %s (%h)' -- "$p" | grep -viE "$EXCLUDE" || true
           }
           {
