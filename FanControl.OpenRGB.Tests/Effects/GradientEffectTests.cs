@@ -1,8 +1,9 @@
 using FanControl.OpenRGB.Effects;
 using OpenRGB.NET;
+using FanControl.OpenRGB.Tests;
 using Xunit;
 
-namespace FanControl.OpenRGB.Tests;
+namespace FanControl.OpenRGB.Tests.Effects;
 
 // GradientEffect does not check ModulateByValue — value maps directly to color position.
 public class GradientEffectTests

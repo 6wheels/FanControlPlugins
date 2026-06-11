@@ -1,9 +1,10 @@
 using FanControl.OpenRGB.Effects;
 using FanControl.OpenRGB.Toolkit;
 using OpenRGB.NET;
+using FanControl.OpenRGB.Tests;
 using Xunit;
 
-namespace FanControl.OpenRGB.Tests;
+namespace FanControl.OpenRGB.Tests.Toolkit;
 
 public class FrameRendererTests
 {

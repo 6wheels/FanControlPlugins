@@ -1,7 +1,7 @@
 using FanControl.OpenRGB.Toolkit;
 using Xunit;
 
-namespace FanControl.OpenRGB.Tests;
+namespace FanControl.OpenRGB.Tests.Toolkit;
 
 public class AutoValueDriverTests
 {
