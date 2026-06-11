@@ -1,5 +1,7 @@
 # FanControl.SystemMetrics
 
+[![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.SystemMetrics)](https://codecov.io/gh/6wheels/FanControlPlugins)
+
 A FanControl plugin that exposes Windows **performance counters** as sensors, letting you build fan curves driven by system activity (CPU, GPU, disk) instead of only hardware temperatures.
 
 ## Sensors

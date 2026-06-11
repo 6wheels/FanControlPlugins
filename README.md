@@ -4,19 +4,13 @@ This repository is a monorepo containing custom plugins for [FanControl](https:/
 
 The build and deployment process is fully automated. Every new release is built via GitHub Actions, and each plugin is published as a `.zip` archive (containing the compiled `.dll`) on the Releases page.
 
-## Test Coverage
+## Plugins
 
-| Plugin | Coverage |
-| --- | --- |
-| FanControl.OpenRGB | [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.OpenRGB)](https://codecov.io/gh/6wheels/FanControlPlugins) |
-| FanControl.Mqtt | — |
-| FanControl.SystemMetrics | — |
-
-## Available Plugins
-
-* **[FanControl.OpenRGB](./FanControl.OpenRGB/README.md)**: Bridges FanControl and OpenRGB, allowing hardware temperatures and custom fan curves to drive RGB lighting dynamically (supports 2D Matrix keyboards, startup animations, and threshold blinking).
-* **[FanControl.Mqtt](./FanControl.Mqtt/README.md)**: Publishes FanControl temperature sensors to an MQTT broker with Home Assistant auto-discovery.
-* **[FanControl.SystemMetrics](./FanControl.SystemMetrics/README.md)**: Exposes Windows performance counters (CPU, GPU, and disk activity) as sensors for building activity-driven fan curves.
+| Plugin | Description | Build | Coverage |
+| --- | --- | --- | --- |
+| [FanControl.OpenRGB](./FanControl.OpenRGB/README.md) | Maps FanControl sensors to OpenRGB lighting effects (static, gradient, blink, aurora, 2D matrix, startup animations). | [![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.OpenRGB)](https://codecov.io/gh/6wheels/FanControlPlugins) |
+| [FanControl.Mqtt](./FanControl.Mqtt/README.md) | Publishes FanControl sensors to an MQTT broker with Home Assistant auto-discovery. | [![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.Mqtt)](https://codecov.io/gh/6wheels/FanControlPlugins) |
+| [FanControl.SystemMetrics](./FanControl.SystemMetrics/README.md) | Exposes Windows performance counters (CPU, GPU, disk) as sensors for activity-driven fan curves. | [![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.SystemMetrics)](https://codecov.io/gh/6wheels/FanControlPlugins) |
 
 ## 📦 Installation for Users
 

@@ -1,5 +1,7 @@
 # FanControl.Mqtt
 
+[![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.Mqtt)](https://codecov.io/gh/6wheels/FanControlPlugins)
+
 A FanControl plugin that bridges your hardware sensors to an MQTT broker. It publishes FanControl temperature sensors as MQTT topics and advertises them to **Home Assistant** through its [MQTT auto-discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) protocol, so each sensor shows up automatically in your HA dashboard.
 
 ## Features

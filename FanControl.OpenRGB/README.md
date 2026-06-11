@@ -1,6 +1,6 @@
 # FanControl.OpenRGB
 
-[![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.OpenRGB)](https://codecov.io/gh/6wheels/FanControlPlugins)
+[![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.OpenRGB)](https://codecov.io/gh/6wheels/FanControlPlugins)
 
 A FanControl plugin that turns your hardware cooling logic into dynamic RGB lighting effects. By communicating directly with the OpenRGB SDK, this plugin maps any FanControl sensor (temperature, fan curve, mix) to specific RGB zones or devices.
 
