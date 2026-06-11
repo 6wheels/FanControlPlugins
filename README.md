@@ -2,7 +2,7 @@
 
 This repository is a monorepo containing custom plugins for [FanControl](https://github.com/Rem0o/FanControl.Releases), a highly customizable fan management software for Windows. 
 
-The build and deployment process is fully automated. Every new release is built via GitHub Actions, and the compiled `.dll` files are directly available on the Releases page.
+The build and deployment process is fully automated. Every new release is built via GitHub Actions, and each plugin is published as a `.zip` archive (containing the compiled `.dll`) on the Releases page.
 
 ## Available Plugins
 
@@ -15,8 +15,10 @@ The build and deployment process is fully automated. Every new release is built 
 You do **not** need to compile the source code to use these plugins.
 
 1. Go to the [Releases page](../../releases) of this repository.
-2. Download the `.dll` file of the plugin you want.
-3. Install through the FanControl interface or place the downloaded `.dll` inside your FanControl `Plugins` folder (e.g., `C:\Program Files (x86)\FanControl\Plugins`).
+2. Download the `.zip` archive of the plugin you want and extract the `.dll` from it.
+3. Install the `.dll` using either method:
+   * **Through the FanControl UI**: open the FanControl settings and import the plugin `.dll`.
+   * **Manually**: place the `.dll` inside your FanControl `Plugins` folder (e.g., `C:\Program Files (x86)\FanControl\Plugins`).
 4. Restart FanControl. Make sure plugins are enabled in the FanControl settings.
 
 ---
