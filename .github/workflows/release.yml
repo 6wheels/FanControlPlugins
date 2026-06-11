@@ -117,14 +117,28 @@ jobs:
         id: v
         shell: bash
         run: |
+          set -euo pipefail
+          P="${{ matrix.plugin }}"
           if [[ "${{ needs.setup.outputs.mode }}" == "final" ]]; then
-            VER="${{ needs.setup.outputs.version }}"
-          else
-            SHA=$(git rev-parse --short HEAD)
-            BASE=$(git tag -l "${{ matrix.plugin }}/v*" --sort=-v:refname | head -n1 | sed 's#.*/v##')
-            VER="${BASE:-0.0.0}-dev.${SHA}"
+            echo "version=${{ needs.setup.outputs.version }}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          # Nightly: preview the NEXT version. Bump level is derived from the
+          # Conventional Commit subjects touching this plugin since its last tag.
+          SHA=$(git rev-parse --short HEAD)
+          LASTTAG=$(git tag -l "${P}/v*" --sort=-v:refname | head -n1 || true)
+          BASE="${LASTTAG##*/v}"; BASE="${BASE:-0.0.0}"
+          IFS=. read -r MA MI PA <<< "$BASE"
+          RANGE=""; [ -n "$LASTTAG" ] && RANGE="${LASTTAG}..HEAD"
+          LOG=$(git log $RANGE --pretty='%s%n%b' -- "$P")
+          if grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE' <<< "$LOG"; then
+            MA=$((MA+1)); MI=0; PA=0
+          elif grep -qE '^feat(\([^)]*\))?:' <<< "$LOG"; then
+            MI=$((MI+1)); PA=0
+          else
+            PA=$((PA+1))
+          fi
+          echo "version=${MA}.${MI}.${PA}-dev.${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build ${{ matrix.plugin }}
         run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ steps.v.outputs.version }}

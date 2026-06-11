@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Enforce Conventional Commits on the subject line.
+# The release workflow derives each plugin's next version from these prefixes:
+#   <type>!: ... or BREAKING CHANGE -> major   feat: -> minor   else -> patch
+# Bypass once with:  git commit --no-verify
+subject=$(head -n1 "$1")
+
+# Skip merge / revert / fixup commits.
+case "$subject" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._-]+\))?!?: .+'
+if [[ ! "$subject" =~ $pattern ]]; then
+  echo "commit-msg: subject must follow Conventional Commits." >&2
+  echo "  <type>[(scope)][!]: <description>" >&2
+  echo "  types: feat fix docs style refactor perf test build ci chore revert" >&2
+  echo "  e.g.   feat(openrgb): add gauge gradient effect" >&2
+  echo "         fix!: drop net4.8 support" >&2
+  exit 1
+fi
