@@ -1,38 +1,77 @@
-# Token & Cost Optimization Protocol (CRITICAL)
-You are an autonomous C# expert working strictly in a Windows environment. To minimize token consumption and API costs, you MUST adhere to these operational constraints:
-- **Zero Conversational Filler**: Never use pleasantries, apologies, or conversational transitions. Output only the requested command result, the code diff, or a highly concise technical summary.
-- **Windows Targeted Search**: Linux utilities like `grep` or `rg` are not available by default. To pinpoint exact line numbers without reading whole files, use Windows native commands via PowerShell (`Select-String -Path "...\*.cs" -Pattern "term"`) or CMD (`findstr /s /i /n "term" *.cs`).
-- **Limit Exploration**: Do NOT guess project structure. If a file is not found, do a targeted Windows `dir /s` or `Glob` only on `.cs` files.
-- **Fail Fast**: If a build fails, do NOT blindly attempt more than 2 automatic fixes. Stop and ask the user for directions to avoid wasting tokens in an endless loop.
+# Environment & Execution Context (CRITICAL)
+You are an autonomous C# expert. Claude Code runs from **WSL (Linux)**, but all
+runtime targets are **Windows-native**. Therefore:
+- **Always invoke the Windows toolchain via `.exe`**: use `dotnet.exe`, never the
+  Linux `dotnet`. The plugins load into FanControl (Windows) and rely on Windows-only
+  APIs. The Linux .NET runtime will not reach these targets and will break those APIs.
+- **Zero Conversational Filler**: No pleasantries, apologies, or transitions.
+  Output only the command result, the code diff, or a concise technical summary.
+- **Search**: Use the built-in Grep/Glob tools scoped to `.cs` files to locate
+  exact lines without reading whole files. Do NOT shell out to PowerShell for search.
+- **Limit Exploration**: Do NOT guess project structure. Use Glob on `.cs` files
+  only when a file is not found.
+- **Fail Fast**: If a build fails, do NOT attempt more than 2 automatic fixes.
+  Stop and ask the user for directions to avoid wasting tokens in a loop.
 
 # Documentation Policy
-- **No New Documentation**: You are strictly FORBIDDEN from creating new documentation files (e.g., `.md`, `.txt`, help files) unless explicitly and textually requested by the user.
-- **Existing Documentation Updates**: You are allowed to update existing documentation files if a code change requires it, but you MUST ask for explicit user confirmation before modifying any documentation file.
+- **No New Documentation**: You are strictly FORBIDDEN from creating new documentation
+  files (`.md`, `.txt`, help files) unless explicitly and textually requested.
+- **Existing Documentation Updates**: You may update existing documentation if a code
+  change requires it, but MUST ask for explicit user confirmation before modifying any
+  documentation file.
 
 # Build & Execution Commands (Multi-Plugin Monorepo)
-- Build Specific Project: `dotnet build path\to\TargetPlugin.csproj`
-- Build Entire Solution: `dotnet build path\to\SolutionName.sln`
-- Test Specific Project: `dotnet test path\to\TargetPlugin.Tests.csproj`
-- Clean Specific Project: `dotnet clean path\to\TargetPlugin.csproj`
-- **Monorepo & Solution Rule**: This repository contains multiple plugins under a single solution. To minimize terminal output and save context window tokens, prefer targeting the specific `.csproj` you are currently working on by default. However, you are fully authorized to build the entire solution via the `.sln` file if the changes span across multiple interdependent projects, or if the user explicitly requests a full rebuild.
+All commands run from WSL against the Windows SDK via `.exe`:
+- Build specific project: `dotnet.exe build path\to\TargetPlugin.csproj`
+- Build entire solution:  `dotnet.exe build path\to\SolutionName.sln`
+- Test specific project:  `dotnet.exe test path\to\TargetPlugin.Tests.csproj`
+- Clean specific project: `dotnet.exe clean path\to\TargetPlugin.csproj`
+- Run debug harness:      `dotnet.exe run --project path\to\TestHarness.csproj`
+- **Monorepo Rule**: prefer targeting the specific `.csproj` you are working on to
+  limit terminal output and token use. You are authorized to build the full `.sln`
+  when changes span interdependent projects, or on explicit user request.
+- **Paths**: from WSL the Windows filesystem is under `/mnt/c/...`. Since the build
+  process is a Windows binary, paths passed to `dotnet.exe` use Windows form (`path\to\...`).
 
 # Project Context & Architecture
-- **Environment**: C# 10+, .NET 8.0 (Windows Native).
-- **Domain**: Custom hardware monitoring plugins for "FanControl" (Windows-only software).
+- **Host**: Claude Code in WSL; runtime is Windows-native. C# 10+, .NET 8.0.
+- **Domain**: Custom hardware-monitoring plugins for "FanControl" (Windows-only software).
 - **Core Interfaces**: `FanControl.Plugins.IPlugin2`, `FanControl.Plugins.IPluginSensor`.
+- **Per-plugin scoping**: each plugin lives in its own subdirectory with its own
+  CLAUDE.md describing plugin-specific context. To scope a session to a single plugin,
+  launch Claude Code from that plugin's directory; access is then limited to it.
+- **Deployment**: the built DLL is copied to the FanControl plugins folder (Windows
+  path) via a post-build step in the `.csproj`.
 
 # Coding Standards
-- **Performance**: The `Update()` method in sensors runs in a tight loop. It MUST be allocation-free. No synchronous I/O, no `Task.Delay`, no heavy querying inside `Update()`.
-- **Resource Management**: Hardware hooks, streams, and Windows WMI queries (`ManagementObjectSearcher`) must strictly implement `IDisposable` or use `using` blocks. Memory leaks will crash the host application.
-- **Error Handling**: Wrap hardware sampling in `try-catch`. Return `null` or a fallback gracefully on failure. Do NOT throw unhandled exceptions.
-- **Diff Formatting**: When editing files, modify ONLY the necessary blocks. Do not rewrite entire classes for minor changes.
+- **Performance**: The `Update()` method in sensors runs in a tight loop. It MUST be
+  allocation-free. No synchronous I/O, no `Task.Delay`, no heavy querying inside `Update()`.
+- **Resource Management**: All unmanaged resources — hardware hooks, streams, network
+  clients, OS handles, WMI queries (`ManagementObjectSearcher`) — must implement
+  `IDisposable` or use `using` blocks. Memory leaks will crash the host application.
+  See each plugin's CLAUDE.md for its specific resources.
+- **Error Handling**: Wrap hardware sampling and external calls in `try-catch`. Return
+  `null` or a fallback gracefully on failure. Do NOT throw unhandled exceptions.
+- **Diff Formatting**: Modify ONLY the necessary blocks. Do not rewrite entire classes
+  for minor changes.
+
+# Testing
+- All tests run as Windows processes via `dotnet.exe test`, so Windows-only APIs
+  (PerformanceCounter, WMI) work normally.
+- Prefer pure unit tests on logic behind an abstraction (inject values, no real
+  hardware/counters/broker).
+- Keep integration tests (real endpoints/counters) few and clearly traited/categorized
+  so they can be filtered.
 
 # Git & Commit Policies
-- **No AI Signatures**: When generating commit messages or executing `git commit`, you are strictly FORBIDDEN from adding any AI watermarks, signatures, or trailers (such as `Co-authored-by: Claude`, `Generated by AI`, etc.).
-- **Commit Format**: Use standard, concise commit messages. Output strictly the title and description without any mention of your participation.
+- **No AI Signatures**: When generating commit messages or running `git commit`, you are
+  strictly FORBIDDEN from adding AI watermarks, signatures, or trailers (e.g.
+  `Co-authored-by: Claude`, `Generated by AI`).
+- **Commit Format**: Standard, concise commit messages. Title and description only, with
+  no mention of your participation.
 
 # Strictly Ignored Directories & Files
-Under NO circumstances should you scan, read, or evaluate files in the following directories:
+Under NO circumstances scan, read, or evaluate:
 - `bin/`
 - `obj/`
 - `.vs/`
