@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.SystemMetrics", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.Mqtt", "FanControl.Mqtt\FanControl.Mqtt.csproj", "{971EB256-EE4F-45F3-8497-349E0AFEC1F0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.OpenRGB.Tests", "FanControl.OpenRGB.Tests\FanControl.OpenRGB.Tests.csproj", "{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{971EB256-EE4F-45F3-8497-349E0AFEC1F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{971EB256-EE4F-45F3-8497-349E0AFEC1F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{971EB256-EE4F-45F3-8497-349E0AFEC1F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
