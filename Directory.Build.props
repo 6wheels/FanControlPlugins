@@ -2,7 +2,14 @@
   <PropertyGroup>
     <!-- Overridden by CI via -p:Version=. Baseline for local builds. -->
     <Version Condition="'$(Version)' == ''">0.0.0</Version>
+    <!-- Override per-project if subdirectory name differs from $(MSBuildProjectName) -->
+    <FanControlPluginsBaseDir Condition="'$(FanControlPluginsBaseDir)' == ''">C:\Program Files (x86)\FanControl\Plugins</FanControlPluginsBaseDir>
+    <FanControlPluginsDir Condition="'$(FanControlPluginsDir)' == ''">$(FanControlPluginsBaseDir)\$(MSBuildProjectName)</FanControlPluginsDir>
   </PropertyGroup>
+
+  <Target Name="Deploy" DependsOnTargets="Build" Condition="'$(IsTestProject)' != 'true'">
+    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)deploy.ps1&quot; -DllSrc &quot;$(TargetPath)&quot; -DestDir &quot;$(FanControlPluginsDir)&quot;" />
+  </Target>
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <Reference Include="FanControl.Plugins">
       <HintPath>$(MSBuildThisFileDirectory)lib\FanControl.Plugins.dll</HintPath>

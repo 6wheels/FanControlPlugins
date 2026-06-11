@@ -58,7 +58,21 @@ FanControl.Plugins.sln
 Simply build the solution in Release mode.
 Dependencies (like OpenRGB.NET) are automatically bundled into a single output .dll using Costura.Fody.
 
-### 4. Commit Conventions
+### 4. Deploy
+
+A `Deploy` MSBuild target stops FanControl, copies the built `.dll` to the plugins folder, and restarts FanControl. It requires a UAC elevation prompt (one per run).
+
+```bash
+dotnet.exe build -t:Deploy FanControl.OpenRGB/FanControl.OpenRGB.csproj
+```
+
+The default destination is `C:\Program Files (x86)\FanControl\Plugins`. Override it if your install path differs:
+
+```bash
+dotnet.exe build -t:Deploy -p:FanControlPluginsDir="C:\your\path\Plugins" FanControl.OpenRGB/FanControl.OpenRGB.csproj
+```
+
+### 5. Commit Conventions
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/). The commit subject **must** follow:
 
 ```text
@@ -77,7 +91,7 @@ git config core.hooksPath .githooks
 
 Bypass for a single commit with `git commit --no-verify` (merges/reverts/fixups are skipped automatically).
 
-### 5. Releases & Versioning
+### 6. Releases & Versioning
 Versions are **per plugin** and live entirely in git tags — there are no version files to edit.
 
 * **Final release** — push a tag shaped `<Plugin>/v<semver>`, which builds and releases only that plugin at that exact version:
