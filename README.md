@@ -53,3 +53,40 @@ FanControl.Plugins.sln
 ### 3. Build
 Simply build the solution in Release mode.
 Dependencies (like OpenRGB.NET) are automatically bundled into a single output .dll using Costura.Fody.
+
+### 4. Commit Conventions
+This repo uses [Conventional Commits](https://www.conventionalcommits.org/). The commit subject **must** follow:
+
+```text
+<type>[(scope)][!]: <description>
+```
+
+* **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+* **Scope** (optional): usually the plugin, e.g. `feat(openrgb): ...`.
+* **Breaking change**: add `!` after the type/scope (e.g. `feat!: ...`) or a `BREAKING CHANGE:` line in the body.
+
+A tracked `commit-msg` hook validates this. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Bypass for a single commit with `git commit --no-verify` (merges/reverts/fixups are skipped automatically).
+
+### 5. Releases & Versioning
+Versions are **per plugin** and live entirely in git tags — there are no version files to edit.
+
+* **Final release** — push a tag shaped `<Plugin>/v<semver>`, which builds and releases only that plugin at that exact version:
+  ```bash
+  git tag FanControl.OpenRGB/v1.2.0
+  git push origin FanControl.OpenRGB/v1.2.0
+  ```
+* **Nightly** — every push to `main` (or a manual run) builds all plugins into one rolling `nightly` pre-release. Each artifact previews the plugin's **next** version as `<next>-dev.<short-sha>`, where the bump is derived from the Conventional Commits touching that plugin since its last tag:
+
+  | Commits since the plugin's last tag | Bump |
+  | --- | --- |
+  | a `feat!:` / `BREAKING CHANGE` | major |
+  | a `feat:` | minor |
+  | anything else (`fix:`, `refactor:`, …) | patch |
+
+Each release page includes the zipped `.dll` and a changelog scoped to the relevant plugin(s).
