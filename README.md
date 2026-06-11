@@ -7,8 +7,8 @@ The build and deployment process is fully automated. Every new release is built 
 ## Available Plugins
 
 * **[FanControl.OpenRGB](./FanControl.OpenRGB/README.md)**: Bridges FanControl and OpenRGB, allowing hardware temperatures and custom fan curves to drive RGB lighting dynamically (supports 2D Matrix keyboards, startup animations, and threshold blinking).
-* *(Plugin 2 - Placeholder)*: Description...
-* *(Plugin 3 - Placeholder)*: Description...
+* **[FanControl.Mqtt](./FanControl.Mqtt/README.md)**: Publishes FanControl temperature sensors to an MQTT broker with Home Assistant auto-discovery.
+* **[FanControl.SystemMetrics](./FanControl.SystemMetrics/README.md)**: Exposes Windows performance counters (CPU, GPU, and disk activity) as sensors for building activity-driven fan curves.
 
 ## 📦 Installation for Users
 
@@ -90,3 +90,19 @@ Versions are **per plugin** and live entirely in git tags — there are no versi
   | anything else (`fix:`, `refactor:`, …) | patch |
 
 Each release page includes the zipped `.dll` and a changelog scoped to the relevant plugin(s).
+
+---
+
+## 📚 Dependencies & Licenses
+
+Every plugin references the host `FanControl.Plugins` API and bundles its NuGet dependencies into a single `.dll` via Costura.Fody.
+
+| Dependency | Used by | License | Bundled by Costura |
+| --- | --- | --- | --- |
+| [FanControl.Plugins](https://github.com/Rem0o/FanControl.Releases) | all plugins | Proprietary (Rémi Mercier) | **No** — provided by the FanControl host at runtime, never redistributed (`Private=false`) |
+| [Costura.Fody](https://github.com/Fody/Costura) 6.0.0 | all plugins (build only) | MIT | n/a (build-time tool) |
+| [OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET) 3.1.1 | FanControl.OpenRGB | MIT | Yes |
+| [MQTTnet](https://github.com/dotnet/MQTTnet) 5.1.0.1559 | FanControl.Mqtt | MIT | Yes |
+| [System.Diagnostics.PerformanceCounter](https://github.com/dotnet/runtime) 10.0.8 | FanControl.SystemMetrics | MIT | Yes |
+
+All bundled dependencies are **MIT-licensed**, which permits embedding and redistribution through Costura as long as the copyright and license notices are retained. `FanControl.Plugins` is **proprietary** and is intentionally **not** bundled; the FanControl host supplies it at runtime, so its no-redistribution terms are respected.

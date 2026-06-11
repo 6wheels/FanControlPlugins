@@ -78,6 +78,12 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 - `GaugeGradient`: Requires `ColorMinHex` and `ColorMaxHex`. At value `0`, all selected LEDs are `ColorMinHex`. As the value increases, the gradient fills spatially toward `ColorMaxHex`.
 - `ProgressBar`: Requires `FillColorHex` and optional `EmptyColorHex`. Lights LEDs sequentially to represent the current value, with an optional transparent empty state.
 
+## 📚 Dependencies
+
+This project uses:
+- **[OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET) 3.1.1** — MIT license — embedded into the output `.dll` via Costura.Fody (bundling permitted by MIT).
+- **[FanControl.Plugins](https://github.com/Rem0o/FanControl.Releases)** — the host plugin API (proprietary; supplied by FanControl at runtime, **not** redistributed).
+
 ## 🧰 The Developer Toolkit (Standalone Mode)
 
 This project has a unique architecture: while it compiles into a `.dll` to be loaded as a FanControl plugin, it also contains a `Main()` entry point. This allows it to be run directly as a standalone Console Application for debugging hardware and testing effects dynamically.
