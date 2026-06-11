@@ -98,7 +98,7 @@ If you built the project in Visual Studio, simply double-click the `FanControl.O
 
 **Method 2: Dotnet CLI (Source)**
 Open a terminal in the `FanControl.OpenRGB` directory and run:
-`dotnet run`
+`dotnet.exe run`
 
 ### Features of the Toolkit
 When launched, the Dev Toolkit automatically creates a `fancontrol_rgb.lock` file. This tells the FanControl background plugin to pause its rendering loop, preventing USB port conflicts.
