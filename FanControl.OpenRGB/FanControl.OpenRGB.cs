@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.OpenRGB.Rules;
@@ -84,7 +83,7 @@ namespace FanControl.OpenRGB
         var binding = new RuleBinding(ruleConf, controlSensor);
         _bindings.Add(binding);
         container.ControlSensors.Add(controlSensor);
-        int matchCount = _devices.Count(d => Regex.IsMatch(d.Name ?? "", ruleConf.DeviceRegex));
+        int matchCount = _devices.Count(d => binding.DeviceRegex.IsMatch(d.Name ?? ""));
         Log($"Card '{ruleConf.Name}' created. Regex '{ruleConf.DeviceRegex}' matches {matchCount} device(s).", LogLevel.Info);
       }
     }
