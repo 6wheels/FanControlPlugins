@@ -44,6 +44,28 @@ public class PluginInitializeTests
     }
 
     [Fact]
+    public void Load_AfterInitialize_RegistersSensors_AndPushesToEngine()
+    {
+        using var temp = new TempPath();
+        File.WriteAllText(temp.Path, """{ "Rules": [ { "Name": "GPU", "DeviceRegex": "GPU" } ] }""");
+        var plugin = new OpenRgbPlugin(
+            new FakeDialog(),
+            new FakeLogger(),
+            new OpenRgbConfig(),
+            configPath: temp.Path,
+            connect: _ => new FakeBroker(),
+            suspended: () => true);
+        plugin.Initialize();
+        Assert.True(plugin.EngineStarted);
+
+        var container = new FakeContainer();
+        plugin.Load(container); // engine non-null -> exercises _engine.SetBindings
+
+        Assert.Single(container.ControlSensors);
+        plugin.Close();
+    }
+
+    [Fact]
     public void Close_AfterInitialize_DoesNotThrow()
     {
         using var temp = new TempPath();

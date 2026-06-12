@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using FanControl.OpenRGB.Effects;
@@ -6,6 +7,9 @@ using OpenRGB.NET;
 
 namespace FanControl.OpenRGB
 {
+  // Interactive console-only debug harness (real OpenRGB connection, Console I/O
+  // loops, Thread.Sleep). No shipped plugin logic; excluded from coverage.
+  [ExcludeFromCodeCoverage]
   class Program
   {
     static void Main(string[] args)

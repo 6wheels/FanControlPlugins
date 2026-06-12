@@ -105,6 +105,12 @@ public class PluginLoadTests
     }
 
     [Fact]
+    public void Name_IsOpenRGB()
+    {
+        Assert.Equal("OpenRGB", new OpenRgbPlugin(new FakeDialog(), new FakeLogger()).Name);
+    }
+
+    [Fact]
     public void Close_DoesNotThrow_WhenNeverInitialized()
     {
         var plugin = new OpenRgbPlugin(new FakeDialog(), new FakeLogger());

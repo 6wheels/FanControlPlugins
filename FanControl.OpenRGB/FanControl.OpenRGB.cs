@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.OpenRGB.Rules;
@@ -65,6 +66,8 @@ namespace FanControl.OpenRGB
 
     // Connection factory handed to the engine; the only place that touches the
     // real OpenRGB SDK, so the engine stays unit-testable behind IOpenRgbBroker.
+    // Excluded from coverage: it opens a real socket, untestable without a server.
+    [ExcludeFromCodeCoverage]
     private static IOpenRgbBroker Connect(OpenRgbConfig config)
     {
       var client = new OpenRgbClient(name: "FanControl", ip: config.ServerIp, port: config.ServerPort, autoConnect: false);
