@@ -95,15 +95,4 @@ public class BlinkEffectTests
         Assert.Equal(0.1f, effect.FastBlinkHz);
     }
 
-    // Framerate=60, FastBlinkHz=15, value=100 → framesPerHalf=60/(2*15)=2. frame=2 → Color2.
-    [Fact]
-    public void Framerate60_Value100_Frame2_IsColor2()
-    {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
-        var buffer = new Color[1];
-        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", Framerate = 60 };
-        Apply(effect, device, buffer, 100f, 2);
-        Assert.Equal(0x00, buffer[0].R);
-        Assert.Equal(0xFF, buffer[0].B);
-    }
 }

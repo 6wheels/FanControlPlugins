@@ -97,9 +97,6 @@ private readonly List<RuleBinding> _bindings = [];
 
         var controlSensor = new OpenRgbControlSensor(safeId, ruleConf.Name);
         var binding = new RuleBinding(ruleConf, controlSensor);
-        if (binding.Config.Effect is BlinkEffect blinkEffect)
-          blinkEffect.Framerate = _config.Framerate;
-
         _bindings.Add(binding);
         container.ControlSensors.Add(controlSensor);
         int matchCount = _devices.Count(d => Regex.IsMatch(d.Name ?? "", ruleConf.DeviceRegex));

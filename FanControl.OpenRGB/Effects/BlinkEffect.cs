@@ -1,5 +1,4 @@
 using OpenRGB.NET;
-using System.Text.Json.Serialization;
 
 namespace FanControl.OpenRGB.Effects
 {
@@ -23,8 +22,7 @@ namespace FanControl.OpenRGB.Effects
       set => _fastBlinkHz = Math.Max(0.1f, value);
     }
 
-    [JsonIgnore]
-    public int Framerate { get; set; } = 30;
+    private const int Framerate = 30;
 
     protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
