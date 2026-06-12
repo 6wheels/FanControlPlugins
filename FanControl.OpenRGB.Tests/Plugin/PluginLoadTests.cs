@@ -67,6 +67,44 @@ public class PluginLoadTests
     }
 
     [Fact]
+    public void Load_SafeId_UppercasesAndUnderscoresName()
+    {
+        var config = new OpenRgbConfig
+        {
+            Rules = [new RuleConfig { Id = "", Name = "gpu hot zone", DeviceRegex = ".*", Effect = new StaticEffect() }]
+        };
+        var container = new FakeContainer();
+
+        MakePlugin(config).Load(container);
+
+        Assert.Equal("OPENRGB_GPU_HOT_ZONE", container.ControlSensors[0].Id);
+    }
+
+    [Fact]
+    public void Load_WhitespaceId_GeneratesSafeId()
+    {
+        var config = new OpenRgbConfig
+        {
+            Rules = [new RuleConfig { Id = "   ", Name = "Mix", DeviceRegex = ".*", Effect = new StaticEffect() }]
+        };
+        var container = new FakeContainer();
+
+        MakePlugin(config).Load(container);
+
+        Assert.Equal("OPENRGB_MIX", container.ControlSensors[0].Id);
+    }
+
+    [Fact]
+    public void Load_NoRules_RegistersNothing()
+    {
+        var container = new FakeContainer();
+
+        MakePlugin(new OpenRgbConfig()).Load(container);
+
+        Assert.Empty(container.ControlSensors);
+    }
+
+    [Fact]
     public void Close_DoesNotThrow_WhenNeverInitialized()
     {
         var plugin = new OpenRgbPlugin(new FakeDialog(), new FakeLogger());

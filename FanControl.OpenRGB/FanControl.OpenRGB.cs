@@ -7,26 +7,58 @@ namespace FanControl.OpenRGB
 {
   // Orchestrator: owns config + sensor bindings and the lifecycle of the
   // OpenRgbEngine, which holds all RGB/threading/state-machine concerns.
-  public class OpenRgbPlugin(IPluginDialog dialog, IPluginLogger logger) : IPlugin
+  public class OpenRgbPlugin : IPlugin
   {
     public string Name => "OpenRGB";
 
+    private readonly IPluginDialog _dialog;
+    private readonly IPluginLogger _logger;
+    private readonly string _configPath;
+    private readonly Func<OpenRgbConfig, IOpenRgbBroker> _connect;
+    private readonly TimeProvider _time;
+    private readonly Func<bool>? _suspended;
+
     private OpenRgbConfig _config = new();
-    private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
     private IReadOnlyList<RuleBinding> _bindings = [];
     private OpenRgbEngine? _engine;
 
-    // Test seam: inject config directly without touching disk or the OpenRGB server.
-    internal OpenRgbPlugin(IPluginDialog dialog, IPluginLogger logger, OpenRgbConfig config)
-        : this(dialog, logger) => _config = config;
+    public OpenRgbPlugin(IPluginDialog dialog, IPluginLogger logger)
+    {
+      _dialog = dialog;
+      _logger = logger;
+      _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
+      _connect = Connect;
+      _time = TimeProvider.System;
+    }
+
+    // Test seam: inject config and the engine's dependencies so Initialize can
+    // run without touching the real config path or the OpenRGB server.
+    internal OpenRgbPlugin(
+        IPluginDialog dialog,
+        IPluginLogger logger,
+        OpenRgbConfig config,
+        string? configPath = null,
+        Func<OpenRgbConfig, IOpenRgbBroker>? connect = null,
+        TimeProvider? time = null,
+        Func<bool>? suspended = null)
+        : this(dialog, logger)
+    {
+      _config = config;
+      if (configPath != null) _configPath = configPath;
+      if (connect != null) _connect = connect;
+      if (time != null) _time = time;
+      _suspended = suspended;
+    }
+
+    internal bool EngineStarted => _engine != null;
 
     public void Initialize()
     {
-      var loaded = ConfigLoader.LoadOrCreate(_configPath, dialog, Log);
+      var loaded = ConfigLoader.LoadOrCreate(_configPath, _dialog, Log);
       if (loaded == null) return; // template generated, nothing to drive yet
       _config = loaded;
 
-      _engine = new OpenRgbEngine(_config, Connect, Log);
+      _engine = new OpenRgbEngine(_config, _connect, Log, _time, _suspended);
       _engine.SetBindings(_bindings);
       _engine.Start();
     }
@@ -77,7 +109,7 @@ namespace FanControl.OpenRGB
       if (level >= _config.LogLevel)
       {
         string prefix = $"[{level.ToString().ToUpper()}]";
-        logger.Log($"[OpenRGB] {prefix} {message}");
+        _logger.Log($"[OpenRGB] {prefix} {message}");
       }
     }
 
