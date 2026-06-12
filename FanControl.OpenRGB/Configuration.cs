@@ -26,6 +26,7 @@ namespace FanControl.OpenRGB
     }
     public float TransitionSpeed { get; set; } = 0.1f;
     public StartupConfig? Startup { get; set; }
+    public ReconnectConfig Reconnect { get; set; } = new();
     public List<RuleConfig> Rules { get; set; } = [];
   }
 
@@ -33,6 +34,23 @@ namespace FanControl.OpenRGB
   {
     public double DurationSeconds { get; set; } = 5.0;
     public BaseRgbEffect Effect { get; set; } = null!;
+  }
+
+  public class ReconnectConfig
+  {
+    private int _maxRetries = 5;
+    public int MaxRetries
+    {
+      get => _maxRetries;
+      set => _maxRetries = Math.Max(0, value);
+    }
+
+    private double _delaySeconds = 5.0;
+    public double DelaySeconds
+    {
+      get => _delaySeconds;
+      set => _delaySeconds = Math.Max(0.0, value);
+    }
   }
 
   public class RuleConfig

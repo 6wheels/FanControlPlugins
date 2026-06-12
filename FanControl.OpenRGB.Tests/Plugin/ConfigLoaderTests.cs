@@ -57,4 +57,28 @@ public class ConfigLoaderTests
     {
         Assert.ThrowsAny<Exception>(() => ConfigLoader.Parse("{ not json"));
     }
+
+    [Fact]
+    public void Parse_DefaultReconnect_WhenOmitted()
+    {
+        var config = ConfigLoader.Parse("{}");
+        Assert.Equal(5, config.Reconnect.MaxRetries);
+        Assert.Equal(5.0, config.Reconnect.DelaySeconds);
+    }
+
+    [Fact]
+    public void Parse_ReadsReconnectSettings()
+    {
+        var config = ConfigLoader.Parse("""{ "Reconnect": { "MaxRetries": 3, "DelaySeconds": 2.5 } }""");
+        Assert.Equal(3, config.Reconnect.MaxRetries);
+        Assert.Equal(2.5, config.Reconnect.DelaySeconds);
+    }
+
+    [Fact]
+    public void Parse_ClampsNegativeReconnectValues()
+    {
+        var config = ConfigLoader.Parse("""{ "Reconnect": { "MaxRetries": -1, "DelaySeconds": -10 } }""");
+        Assert.Equal(0, config.Reconnect.MaxRetries);
+        Assert.Equal(0.0, config.Reconnect.DelaySeconds);
+    }
 }
