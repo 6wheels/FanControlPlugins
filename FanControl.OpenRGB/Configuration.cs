@@ -52,9 +52,6 @@ namespace FanControl.OpenRGB
       set => _transitionSpeed = value.HasValue ? Math.Clamp(value.Value, 0f, 1f) : null;
     }
 
-    public BaseRgbEffect ActiveEffect { get; set; } = null!;
-    public BaseRgbEffect? IdleEffect { get; set; }
-
     public BaseRgbEffect Effect { get; set; } = null!;
   }
 }
