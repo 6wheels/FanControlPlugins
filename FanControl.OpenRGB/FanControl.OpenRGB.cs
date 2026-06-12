@@ -4,6 +4,7 @@ using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.OpenRGB.Rules;
 using FanControl.OpenRGB.Effects;
+using FanControl.OpenRGB.Toolkit;
 using System.Diagnostics;
 
 namespace FanControl.OpenRGB
@@ -20,8 +21,7 @@ namespace FanControl.OpenRGB
 
     private OpenRgbConfig _config = new();
     private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
-    private readonly string _lockFilePath = Path.Combine(Path.GetTempPath(), "fancontrol_rgb.lock");
-    private readonly List<RuleBinding> _bindings = [];
+private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
 
     private Stopwatch _startupStopwatch = new();
@@ -113,7 +113,7 @@ namespace FanControl.OpenRGB
 
       try
       {
-        if (File.Exists(_lockFilePath)) return; // Pause DevKit
+        if (File.Exists(LockFile.Path)) return; // Pause DevKit
         if (_client == null || !_client.Connected || _physicalBuffers == null) return;
 
         _frameCount++;
