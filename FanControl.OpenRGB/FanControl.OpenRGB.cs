@@ -98,7 +98,8 @@ namespace FanControl.OpenRGB
         if (File.Exists(LockFile.Path)) return;
         if (_broker == null || !_broker.Connected || _physicalBuffers == null) return;
         _frameCount++;
-        RenderFrame(_broker, _devices, _physicalBuffers, _bindings, _config, _startupStopwatch, _deviceNeedsUpdate, _frameCount);
+        var ctx = new RenderContext(_broker, _devices, _physicalBuffers, _deviceNeedsUpdate, _bindings, _config, _startupStopwatch);
+        RenderFrame(in ctx, _frameCount);
       }
       catch (Exception ex)
       {
@@ -112,36 +113,38 @@ namespace FanControl.OpenRGB
       }
     }
 
-    internal static void RenderFrame(
-        IOpenRgbBroker broker,
-        Device[] devices,
-        Color[][] physicalBuffers,
-        List<RuleBinding> bindings,
-        OpenRgbConfig config,
-        Stopwatch startupStopwatch,
-        bool[] deviceNeedsUpdate,
-        int frameCount)
+    internal static void RenderFrame(in RenderContext ctx, int frameCount)
     {
-      Array.Clear(deviceNeedsUpdate);
+      Array.Clear(ctx.DeviceNeedsUpdate);
 
-      // --- STARTUP ANIMATION ---
-      if (config.Startup != null && config.Startup.Effect != null)
+      if (TryRenderStartup(in ctx, frameCount)) return;
+
+      RenderLayers(in ctx, frameCount);
+    }
+
+    // Plays the startup animation while it is active. Returns true while the
+    // animation owns the frame (caller must skip the layer stack), false once
+    // it has elapsed (or was never configured).
+    private static bool TryRenderStartup(in RenderContext ctx, int frameCount)
+    {
+      if (ctx.Config.Startup == null || ctx.Config.Startup.Effect == null) return false;
+
+      if (ctx.StartupStopwatch.Elapsed.TotalSeconds < ctx.Config.Startup.DurationSeconds)
       {
-        if (startupStopwatch.Elapsed.TotalSeconds < config.Startup.DurationSeconds)
-        {
-          config.Startup.Effect.Apply(devices, ".*", null, null, 100f, frameCount, config.TransitionSpeed, physicalBuffers);
-          for (int i = 0; i < devices.Length; i++) broker.UpdateLeds(i, physicalBuffers[i]);
-          return;
-        }
-        else if (startupStopwatch.IsRunning)
-        {
-          startupStopwatch.Stop();
-          // startup complete, fall through to layer stack
-        }
+        ctx.Config.Startup.Effect.Apply(ctx.Devices, ".*", null, null, 100f, frameCount, ctx.Config.TransitionSpeed, ctx.Buffers);
+        for (int i = 0; i < ctx.Devices.Length; i++) ctx.Broker.UpdateLeds(i, ctx.Buffers[i]);
+        return true;
       }
 
-      // --- LAYER STACKING ---
-      foreach (var binding in bindings)
+      if (ctx.StartupStopwatch.IsRunning) ctx.StartupStopwatch.Stop();
+      return false;
+    }
+
+    // Applies each active rule's effect into the shared buffers, then commits
+    // only the devices a layer actually targeted.
+    private static void RenderLayers(in RenderContext ctx, int frameCount)
+    {
+      foreach (var binding in ctx.Bindings)
       {
         float val = binding.Control.Value ?? 0f;
         if (val < binding.Config.ActivationThreshold) continue;
@@ -151,35 +154,35 @@ namespace FanControl.OpenRGB
         float range = 100f - binding.Config.ActivationThreshold;
         float valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
 
-        float speedToUse = binding.Config.TransitionSpeed ?? config.TransitionSpeed;
+        float speedToUse = binding.Config.TransitionSpeed ?? ctx.Config.TransitionSpeed;
 
         binding.Config.Effect?.Apply(
-            devices,
+            ctx.Devices,
             binding.Config.DeviceRegex,
             binding.Config.ZoneRegex,
             binding.Config.LedRegex,
             valueToPass,
             frameCount,
             speedToUse,
-            physicalBuffers
+            ctx.Buffers
         );
 
-        for (int i = 0; i < devices.Length; i++)
+        for (int i = 0; i < ctx.Devices.Length; i++)
         {
-          if (binding.DeviceRegex.IsMatch(devices[i].Name ?? ""))
+          if (binding.DeviceRegex.IsMatch(ctx.Devices[i].Name ?? ""))
           {
-            deviceNeedsUpdate[i] = true;
+            ctx.DeviceNeedsUpdate[i] = true;
           }
         }
       }
 
       // --- OPTIMIZED HARDWARE COMMIT ---
-      for (int i = 0; i < devices.Length; i++)
+      for (int i = 0; i < ctx.Devices.Length; i++)
       {
         // Only push to USB if a layer was targeting this device.
-        if (deviceNeedsUpdate[i])
+        if (ctx.DeviceNeedsUpdate[i])
         {
-          broker.UpdateLeds(i, physicalBuffers[i]);
+          ctx.Broker.UpdateLeds(i, ctx.Buffers[i]);
         }
       }
     }

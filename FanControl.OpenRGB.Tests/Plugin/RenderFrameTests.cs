@@ -1,6 +1,7 @@
 using FanControl.OpenRGB;
 using FanControl.OpenRGB.Effects;
 using FanControl.OpenRGB.Rules;
+using FanControl.OpenRGB.Toolkit;
 using OpenRGB.NET;
 using System.Diagnostics;
 using Xunit;
@@ -31,7 +32,11 @@ public class RenderFrameTests
 
     static void Render(FakeBroker broker, Device[] devices, Color[][] buffers,
         List<RuleBinding> bindings, OpenRgbConfig? config = null, Stopwatch? sw = null)
-        => OpenRgbPlugin.RenderFrame(broker, devices, buffers, bindings, config ?? new OpenRgbConfig(), sw ?? new Stopwatch(), new bool[devices.Length], 1);
+    {
+        var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length],
+            bindings, config ?? new OpenRgbConfig(), sw ?? new Stopwatch());
+        OpenRgbPlugin.RenderFrame(in ctx, 1);
+    }
 
     // --- activation threshold ---
 
