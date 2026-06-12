@@ -17,12 +17,13 @@ namespace FanControl.OpenRGB
     private Timer? _renderTimer;
     private Device[] _devices = [];
     private Color[][]? _physicalBuffers;
-    private bool _isRendering = false;
+    private volatile bool _isRendering;
 
     private OpenRgbConfig _config = new();
     private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
     private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
+    private bool[] _deviceNeedsUpdate = [];
 
     private Stopwatch _startupStopwatch = new();
 
@@ -63,6 +64,7 @@ namespace FanControl.OpenRGB
         _devices = _broker.GetAllControllerData();
 
         _physicalBuffers = new Color[_devices.Length][];
+        _deviceNeedsUpdate = new bool[_devices.Length];
         Log($"Connected. {_devices.Length} detected devices:");
         for (int i = 0; i < _devices.Length; i++)
         {
@@ -114,7 +116,7 @@ namespace FanControl.OpenRGB
         if (File.Exists(LockFile.Path)) return;
         if (_broker == null || !_broker.Connected || _physicalBuffers == null) return;
         _frameCount++;
-        RenderFrame(_broker, _devices, _physicalBuffers, _bindings, _config, _startupStopwatch, _frameCount);
+        RenderFrame(_broker, _devices, _physicalBuffers, _bindings, _config, _startupStopwatch, _deviceNeedsUpdate, _frameCount);
       }
       finally
       {
@@ -129,10 +131,10 @@ namespace FanControl.OpenRGB
         List<RuleBinding> bindings,
         OpenRgbConfig config,
         Stopwatch startupStopwatch,
+        bool[] deviceNeedsUpdate,
         int frameCount)
     {
-      // Track which devices are touched this frame to avoid redundant USB writes.
-      bool[] deviceNeedsUpdate = new bool[devices.Length];
+      Array.Clear(deviceNeedsUpdate);
 
       // --- STARTUP ANIMATION ---
       if (config.Startup != null && config.Startup.Effect != null)
@@ -176,7 +178,7 @@ namespace FanControl.OpenRGB
 
         for (int i = 0; i < devices.Length; i++)
         {
-          if (Regex.IsMatch(devices[i].Name ?? "", binding.Config.DeviceRegex))
+          if (binding.DeviceRegex.IsMatch(devices[i].Name ?? ""))
           {
             deviceNeedsUpdate[i] = true;
           }

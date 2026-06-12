@@ -31,7 +31,7 @@ public class RenderFrameTests
 
     static void Render(FakeBroker broker, Device[] devices, Color[][] buffers,
         List<RuleBinding> bindings, OpenRgbConfig? config = null, Stopwatch? sw = null)
-        => OpenRgbPlugin.RenderFrame(broker, devices, buffers, bindings, config ?? new OpenRgbConfig(), sw ?? new Stopwatch(), 1);
+        => OpenRgbPlugin.RenderFrame(broker, devices, buffers, bindings, config ?? new OpenRgbConfig(), sw ?? new Stopwatch(), new bool[devices.Length], 1);
 
     // --- activation threshold ---
 
