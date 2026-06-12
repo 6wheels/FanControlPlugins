@@ -9,6 +9,7 @@ A FanControl plugin that turns your hardware cooling logic into dynamic RGB ligh
 * **2D Matrix Support:** Advanced spatial effects like Aurora Borealis aware of horizontal/vertical hardware layouts.
 * **Startup Animations:** Non-blocking boot sequences (e.g., a 5-second wave effect before switching to temperature monitoring).
 * **Hardware Safety:** Strictly limits update rates to prevent USB controller flooding.
+* **Resilient Connection:** If the OpenRGB server starts late or drops mid-session, the plugin reconnects automatically with bounded retries instead of staying dead.
 
 ## ⚙️ Prerequisites
 
@@ -30,6 +31,10 @@ Upon the first launch, the plugin creates an `OpenRGBConfig.json` file in your F
   "ServerPort": 6742,
   "Framerate": 30,
   "LogLevel": "Info",
+  "Reconnect": {
+    "MaxRetries": 5,
+    "DelaySeconds": 5
+  },
   "Startup": {
     "DurationSeconds": 4.5,
     "Effect": {
@@ -48,32 +53,39 @@ Upon the first launch, the plugin creates an `OpenRGBConfig.json` file in your F
       "Name": "GPU High Temp Warning",
       "DeviceRegex": ".*Alloy.*",
       "ActivationThreshold": 75.0,
-      "ActiveEffect": {
+      "Effect": {
         "Type": "Blink",
         "Color1Hex": "#FF0000",
         "Color2Hex": "#000000",
-        "BlinkIntervalFrames": 15
-      },
-      "IdleEffect": {
-        "Type": "Static",
-        "ColorHex": "#FFFFFF"
+        "SlowBlinkHz": 1.0,
+        "FastBlinkHz": 10.0,
+        "ModulateByValue": true
       }
     }
   ]
 }
 ```
 
+### Connection & Reconnect
+The plugin drives RGB through a small state machine: it connects to the OpenRGB SDK server, optionally plays the startup animation, then renders your rules. If the server is unavailable at launch or the connection drops later, it enters a bounded reconnect loop.
+
+- `Reconnect.MaxRetries` — how many reconnect attempts before giving up (terminal). Default `5`.
+- `Reconnect.DelaySeconds` — delay between attempts. Default `5`.
+
+Once retries are exhausted the engine stops driving LEDs and logs; restart FanControl (or fix the server) to recover. Transient render errors while still connected are skipped without tearing down the connection.
+
 ### Understanding Rules
 Once the plugin loads the JSON, you will see a new custom sensor card in FanControl for each rule (e.g., "GPU High Temp Warning").
 
 - Assign a curve or temperature to this card in the FanControl UI.
-- When the card's value exceeds the ActivationThreshold (e.g., 75%), the ActiveEffect triggers.
-- If the value is below the threshold, the IdleEffect is applied.
+- When the card's value reaches the `ActivationThreshold` (e.g., 75%), the rule's `Effect` is applied to the matching devices.
+- Below the threshold the rule is inactive and leaves those LEDs untouched, so a lower-threshold rule (or OpenRGB itself) can control them.
+- The effect receives a value re-scaled to `0–100` across the activation range, so `ModulateByValue` effects ramp from the threshold up to 100%.
 
 ### Effects Types
 - `Static`: Requires `ColorHex`. Displays a solid color, optionally dimmed by the current value when `ModulateByValue` is true.
 - `Gradient`: Requires `ColorMinHex` and `ColorMaxHex`. Colors interpolate between minimum and maximum values based on the current value.
-- `Blink`: Requires `Color1Hex` and `Color2Hex`. `MinBlinkIntervalFrames` and `MaxBlinkIntervalFrames` set the speed range (in frames); when `ModulateByValue` is true, blink speed scales with the sensor value.
+- `Blink`: Requires `Color1Hex` and `Color2Hex`. `SlowBlinkHz` and `FastBlinkHz` set the blink frequency range (in Hz); when `ModulateByValue` is true, the frequency scales from slow (low value) to fast (high value).
 - `Breathing`: Requires `BaseColorHex`, `PeakColorHex`, `MinSpeed`, and `MaxSpeed`. Creates a smooth pulsating fade whose speed increases with the current value.
 - `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, `Speed`, `Scale`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
 - `SpatialGradient`: Requires `ColorMinHex` and `ColorMaxHex`. Draws a left-to-right gradient across a 1D strip or 2D matrix.
