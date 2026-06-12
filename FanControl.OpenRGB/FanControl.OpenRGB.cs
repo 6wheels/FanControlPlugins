@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FanControl.Plugins;
 using OpenRGB.NET;
@@ -13,7 +13,7 @@ namespace FanControl.OpenRGB
   {
     public string Name => "OpenRGB";
 
-    private OpenRgbClient? _client;
+    private IOpenRgbBroker? _broker;
     private Timer? _renderTimer;
     private Device[] _devices = [];
     private Color[][]? _physicalBuffers;
@@ -21,7 +21,7 @@ namespace FanControl.OpenRGB
 
     private OpenRgbConfig _config = new();
     private readonly string _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
-private readonly List<RuleBinding> _bindings = [];
+    private readonly List<RuleBinding> _bindings = [];
     private int _frameCount = 0;
 
     private Stopwatch _startupStopwatch = new();
@@ -40,7 +40,6 @@ private readonly List<RuleBinding> _bindings = [];
 
           string parsedConfigJson = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
           Log($"Parsed configuration dump:\n{parsedConfigJson}", LogLevel.Debug);
-          // -------------------------------------------------
           Log($"Server IP: {_config.ServerIp}, Port: {_config.ServerPort}, Framerate: {_config.Framerate} FPS, LogLevel: {_config.LogLevel}", LogLevel.Debug);
         }
         catch (Exception ex)
@@ -58,9 +57,10 @@ private readonly List<RuleBinding> _bindings = [];
 
       try
       {
-        _client = new OpenRgbClient(name: "FanControl", ip: _config.ServerIp, port: _config.ServerPort);
-        _client.Connect();
-        _devices = _client.GetAllControllerData();
+        var client = new OpenRgbClient(name: "FanControl", ip: _config.ServerIp, port: _config.ServerPort);
+        client.Connect();
+        _broker = new OpenRgbBroker(client);
+        _devices = _broker.GetAllControllerData();
 
         _physicalBuffers = new Color[_devices.Length][];
         Log($"Connected. {_devices.Length} detected devices:");
@@ -109,80 +109,88 @@ private readonly List<RuleBinding> _bindings = [];
       // Reentrancy guard: timer fires every ~33ms and USB commits can be slow.
       if (_isRendering) return;
       _isRendering = true;
-
       try
       {
-        if (File.Exists(LockFile.Path)) return; // Pause DevKit
-        if (_client == null || !_client.Connected || _physicalBuffers == null) return;
-
+        if (File.Exists(LockFile.Path)) return;
+        if (_broker == null || !_broker.Connected || _physicalBuffers == null) return;
         _frameCount++;
-
-        // Track which devices are touched this frame to avoid redundant USB writes.
-        bool[] deviceNeedsUpdate = new bool[_devices.Length];
-
-        // --- STARTUP ANIMATION ---
-        if (_config.Startup != null && _config.Startup.Effect != null)
-        {
-          if (_startupStopwatch.Elapsed.TotalSeconds < _config.Startup.DurationSeconds)
-          {
-            _config.Startup.Effect.Apply(_devices, ".*", null, null, 100f, _frameCount, _config.TransitionSpeed, _physicalBuffers);
-            for (int i = 0; i < _devices.Length; i++) _client.UpdateLeds(i, _physicalBuffers[i]);
-            return;
-          }
-          else if (_startupStopwatch.IsRunning)
-          {
-            _startupStopwatch.Stop();
-            Log("Startup animation complete. Switching to layer stack.", LogLevel.Info);
-          }
-        }
-
-        // --- LAYER STACKING ---
-        foreach (var binding in _bindings)
-        {
-          float val = binding.Control.Value ?? 0f;
-          if (val < binding.Config.ActivationThreshold) continue;
-
-          // Re-scale so effects always receive 0–100 relative to the activation range,
-          // not the raw sensor value. A threshold of 75 means raw=75 → effect sees 0, raw=100 → 100.
-          float range = 100f - binding.Config.ActivationThreshold;
-          float valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
-
-          float speedToUse = binding.Config.TransitionSpeed ?? _config.TransitionSpeed;
-
-          binding.Config.Effect?.Apply(
-              _devices,
-              binding.Config.DeviceRegex,
-              binding.Config.ZoneRegex,
-              binding.Config.LedRegex,
-              valueToPass,
-              _frameCount,
-              speedToUse,
-              _physicalBuffers
-          );
-
-          for (int i = 0; i < _devices.Length; i++)
-          {
-            if (Regex.IsMatch(_devices[i].Name ?? "", binding.Config.DeviceRegex))
-            {
-              deviceNeedsUpdate[i] = true;
-            }
-          }
-        }
-
-        // --- OPTIMIZED HARDWARE COMMIT ---
-        for (int i = 0; i < _devices.Length; i++)
-        {
-          // Only push to USB if a layer was targeting this device.
-          if (deviceNeedsUpdate[i])
-          {
-            _client.UpdateLeds(i, _physicalBuffers[i]);
-          }
-        }
+        RenderFrame(_broker, _devices, _physicalBuffers, _bindings, _config, _startupStopwatch, _frameCount);
       }
       finally
       {
-        // Always release the lock to allow the next frame.
         _isRendering = false;
+      }
+    }
+
+    internal static void RenderFrame(
+        IOpenRgbBroker broker,
+        Device[] devices,
+        Color[][] physicalBuffers,
+        List<RuleBinding> bindings,
+        OpenRgbConfig config,
+        Stopwatch startupStopwatch,
+        int frameCount)
+    {
+      // Track which devices are touched this frame to avoid redundant USB writes.
+      bool[] deviceNeedsUpdate = new bool[devices.Length];
+
+      // --- STARTUP ANIMATION ---
+      if (config.Startup != null && config.Startup.Effect != null)
+      {
+        if (startupStopwatch.Elapsed.TotalSeconds < config.Startup.DurationSeconds)
+        {
+          config.Startup.Effect.Apply(devices, ".*", null, null, 100f, frameCount, config.TransitionSpeed, physicalBuffers);
+          for (int i = 0; i < devices.Length; i++) broker.UpdateLeds(i, physicalBuffers[i]);
+          return;
+        }
+        else if (startupStopwatch.IsRunning)
+        {
+          startupStopwatch.Stop();
+          // startup complete, fall through to layer stack
+        }
+      }
+
+      // --- LAYER STACKING ---
+      foreach (var binding in bindings)
+      {
+        float val = binding.Control.Value ?? 0f;
+        if (val < binding.Config.ActivationThreshold) continue;
+
+        // Re-scale so effects always receive 0–100 relative to the activation range,
+        // not the raw sensor value. A threshold of 75 means raw=75 → effect sees 0, raw=100 → 100.
+        float range = 100f - binding.Config.ActivationThreshold;
+        float valueToPass = range > 0 ? Math.Clamp(((val - binding.Config.ActivationThreshold) / range) * 100f, 0f, 100f) : 100f;
+
+        float speedToUse = binding.Config.TransitionSpeed ?? config.TransitionSpeed;
+
+        binding.Config.Effect?.Apply(
+            devices,
+            binding.Config.DeviceRegex,
+            binding.Config.ZoneRegex,
+            binding.Config.LedRegex,
+            valueToPass,
+            frameCount,
+            speedToUse,
+            physicalBuffers
+        );
+
+        for (int i = 0; i < devices.Length; i++)
+        {
+          if (Regex.IsMatch(devices[i].Name ?? "", binding.Config.DeviceRegex))
+          {
+            deviceNeedsUpdate[i] = true;
+          }
+        }
+      }
+
+      // --- OPTIMIZED HARDWARE COMMIT ---
+      for (int i = 0; i < devices.Length; i++)
+      {
+        // Only push to USB if a layer was targeting this device.
+        if (deviceNeedsUpdate[i])
+        {
+          broker.UpdateLeds(i, physicalBuffers[i]);
+        }
       }
     }
 
@@ -198,7 +206,7 @@ private readonly List<RuleBinding> _bindings = [];
     public void Close()
     {
       _renderTimer?.Dispose();
-      _client?.Dispose();
+      _broker?.Dispose();
     }
   }
 }

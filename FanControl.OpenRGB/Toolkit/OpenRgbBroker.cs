@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Toolkit;
 
+[ExcludeFromCodeCoverage]
 internal sealed class OpenRgbBroker : IOpenRgbBroker
 {
     private readonly OpenRgbClient _client;

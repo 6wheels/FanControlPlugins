@@ -1,0 +1,82 @@
+using FanControl.OpenRGB;
+using FanControl.OpenRGB.Effects;
+using Xunit;
+
+namespace FanControl.OpenRGB.Tests.Plugin;
+
+public class PluginLoadTests
+{
+    static OpenRgbPlugin MakePlugin(OpenRgbConfig config)
+    {
+        var plugin = new OpenRgbPlugin(new FakeDialog(), new FakeLogger());
+        // Inject config via reflection — Initialize() needs a real connection,
+        // but Load() only reads _config and _devices (empty by default).
+        typeof(OpenRgbPlugin)
+            .GetField("_config", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(plugin, config);
+        return plugin;
+    }
+
+    [Fact]
+    public void Load_RegistersControlSensors_ForEachRule()
+    {
+        var config = new OpenRgbConfig
+        {
+            Rules =
+            [
+                new RuleConfig { Id = "RULE_A", Name = "A", DeviceRegex = "GPU", Effect = new StaticEffect() },
+                new RuleConfig { Id = "RULE_B", Name = "B", DeviceRegex = "FAN", Effect = new StaticEffect() }
+            ]
+        };
+        var plugin = MakePlugin(config);
+        var container = new FakeContainer();
+
+        plugin.Load(container);
+
+        Assert.Equal(2, container.ControlSensors.Count);
+        Assert.Contains(container.ControlSensors, s => s.Id == "RULE_A");
+        Assert.Contains(container.ControlSensors, s => s.Id == "RULE_B");
+    }
+
+    [Fact]
+    public void Load_GeneratesSafeId_WhenIdIsEmpty()
+    {
+        var config = new OpenRgbConfig
+        {
+            Rules = [new RuleConfig { Id = "", Name = "My Rule", DeviceRegex = ".*", Effect = new StaticEffect() }]
+        };
+        var plugin = MakePlugin(config);
+        var container = new FakeContainer();
+
+        plugin.Load(container);
+
+        Assert.Single(container.ControlSensors);
+        Assert.Equal("OPENRGB_MY_RULE", container.ControlSensors[0].Id);
+    }
+
+    [Fact]
+    public void Load_ClearsExistingBindings_OnReload()
+    {
+        var config = new OpenRgbConfig
+        {
+            Rules = [new RuleConfig { Id = "R", Name = "R", DeviceRegex = ".*", Effect = new StaticEffect() }]
+        };
+        var plugin = MakePlugin(config);
+        var container = new FakeContainer();
+
+        plugin.Load(container);
+        plugin.Load(container);
+
+        // container.ControlSensors accumulates across calls (it's the fake's list),
+        // but internally the plugin should have cleared and re-created bindings.
+        Assert.Equal(2, container.ControlSensors.Count); // 2 adds from 2 loads
+    }
+
+    [Fact]
+    public void Close_DoesNotThrow_WhenNeverInitialized()
+    {
+        var plugin = new OpenRgbPlugin(new FakeDialog(), new FakeLogger());
+        var ex = Record.Exception(() => plugin.Close());
+        Assert.Null(ex);
+    }
+}

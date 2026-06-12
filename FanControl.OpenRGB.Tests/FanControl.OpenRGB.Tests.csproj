@@ -8,5 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FanControl.OpenRGB\FanControl.OpenRGB.csproj" />
+    <Reference Include="FanControl.Plugins">
+      <HintPath>..\lib\FanControl.Plugins.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
