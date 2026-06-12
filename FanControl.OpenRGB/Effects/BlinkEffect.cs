@@ -1,4 +1,5 @@
 using OpenRGB.NET;
+using System.Text.Json.Serialization;
 
 namespace FanControl.OpenRGB.Effects
 {
@@ -7,27 +8,23 @@ namespace FanControl.OpenRGB.Effects
     public string Color1Hex { get; set; } = "#FF0000";
     public string Color2Hex { get; set; } = "#000000";
 
-    private int _blinkIntervalFrames = 15;
+    private float _slowBlinkHz = 0.5f;
+    private float _fastBlinkHz = 15.0f;
 
-    // Safeguard: We prevent going below 1 frame, otherwise division by zero or freeze
-    public int BlinkIntervalFrames
+    public float SlowBlinkHz
     {
-      get => _blinkIntervalFrames;
-      set => _blinkIntervalFrames = Math.Max(1, value);
+      get => _slowBlinkHz;
+      set => _slowBlinkHz = Math.Max(0.1f, value);
     }
 
-    private int _maxBlinkIntervalFrames = 30;
-    private int _minBlinkIntervalFrames = 2;
-    public int MaxBlinkIntervalFrames
+    public float FastBlinkHz
     {
-      get => _maxBlinkIntervalFrames;
-      set => _maxBlinkIntervalFrames = Math.Min(30, value);
+      get => _fastBlinkHz;
+      set => _fastBlinkHz = Math.Max(0.1f, value);
     }
-    public int MinBlinkIntervalFrames
-    {
-      get => _minBlinkIntervalFrames;
-      set => _minBlinkIntervalFrames = Math.Max(1, value);
-    }
+
+    [JsonIgnore]
+    public int Framerate { get; set; } = 30;
 
     protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
@@ -35,16 +32,13 @@ namespace FanControl.OpenRGB.Effects
       Color c2 = ParseHex(Color2Hex);
 
       float ratio = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
-
-      // Higher value → smaller interval → faster blink. Float keeps transitions smooth across changing values.
-      float currentInterval = MaxBlinkIntervalFrames - (MaxBlinkIntervalFrames - MinBlinkIntervalFrames) * ratio;
-      currentInterval = Math.Max(1f, currentInterval);
-      float period = currentInterval * 2f;
+      float currentHz = SlowBlinkHz + (FastBlinkHz - SlowBlinkHz) * ratio;
+      float framesPerHalfPeriod = Math.Max(1f, Framerate / (2f * currentHz));
+      float period = framesPerHalfPeriod * 2f;
       float phase = frameCount % period;
-      bool isColor1 = phase < currentInterval;
+      bool isColor1 = phase < framesPerHalfPeriod;
       Color targetColor = isColor1 ? c1 : c2;
 
-      // transitionSpeed = 1.0f: blink must switch instantly, not fade.
       ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, 1.0f);
     }
   }

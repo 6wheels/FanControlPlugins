@@ -10,8 +10,8 @@ public class BlinkEffectTests
     static void Apply(BlinkEffect effect, Device device, Color[] buffer, float value, int frameCount)
         => effect.Apply([device], "GPU", null, null, value, frameCount, 1f, [buffer]);
 
-    // Default: Max=30, Min=2. value=0 → ratio=0, interval=30, period=60.
-    // frame=0: phase=0 < 30 → Color1
+    // Default: SlowBlinkHz=0.5, FastBlinkHz=15, Framerate=30.
+    // value=0 → hz=0.5, framesPerHalf=30, period=60. frame=0 → Color1.
     [Fact]
     public void ModulateByValue_True_Value0_Frame0_IsColor1()
     {
@@ -23,7 +23,7 @@ public class BlinkEffectTests
         Assert.Equal(0x00, buffer[0].B);
     }
 
-    // value=0, interval=30. frame=30: phase=30, not < 30 → Color2
+    // value=0, framesPerHalf=30. frame=30: phase=30 not < 30 → Color2.
     [Fact]
     public void ModulateByValue_True_Value0_Frame30_IsColor2()
     {
@@ -35,7 +35,7 @@ public class BlinkEffectTests
         Assert.Equal(0xFF, buffer[0].B);
     }
 
-    // value=100 → ratio=1, interval=2, period=4. frame=0: phase=0 < 2 → Color1
+    // value=100 → hz=15, framesPerHalf=1, period=2. frame=0 → Color1.
     [Fact]
     public void ModulateByValue_True_Value100_Frame0_IsColor1()
     {
@@ -47,26 +47,26 @@ public class BlinkEffectTests
         Assert.Equal(0x00, buffer[0].B);
     }
 
-    // value=100, interval=2. frame=2: phase=2, not < 2 → Color2
+    // value=100, framesPerHalf=1. frame=1: phase=1 not < 1 → Color2.
     [Fact]
-    public void ModulateByValue_True_Value100_Frame2_IsColor2()
+    public void ModulateByValue_True_Value100_Frame1_IsColor2()
     {
         var device = DeviceBuilder.MakeDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF" };
-        Apply(effect, device, buffer, 100f, 2);
+        Apply(effect, device, buffer, 100f, 1);
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].B);
     }
 
-    // MBV=false forces ratio=1 regardless of value → interval=2. frame=2, value=0 → Color2
+    // MBV=false forces ratio=1 → hz=FastBlinkHz=15, framesPerHalf=1. frame=1 → Color2.
     [Fact]
-    public void ModulateByValue_False_Value0_Frame2_IsColor2()
+    public void ModulateByValue_False_Value0_Frame1_IsColor2()
     {
         var device = DeviceBuilder.MakeDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", ModulateByValue = false };
-        Apply(effect, device, buffer, 0f, 2);
+        Apply(effect, device, buffer, 0f, 1);
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].B);
     }
@@ -82,24 +82,28 @@ public class BlinkEffectTests
     }
 
     [Fact]
-    public void MinBlinkIntervalFrames_ClampedTo1()
+    public void SlowBlinkHz_ClampedToPoint1()
     {
-        var effect = new BlinkEffect { MinBlinkIntervalFrames = 0 };
-        Assert.Equal(1, effect.MinBlinkIntervalFrames);
+        var effect = new BlinkEffect { SlowBlinkHz = 0f };
+        Assert.Equal(0.1f, effect.SlowBlinkHz);
     }
 
     [Fact]
-    public void MaxBlinkIntervalFrames_ClampedTo30()
+    public void FastBlinkHz_ClampedToPoint1()
     {
-        var effect = new BlinkEffect { MaxBlinkIntervalFrames = 99 };
-        Assert.Equal(30, effect.MaxBlinkIntervalFrames);
+        var effect = new BlinkEffect { FastBlinkHz = 0f };
+        Assert.Equal(0.1f, effect.FastBlinkHz);
     }
 
-    // Exercises the BlinkIntervalFrames getter and setter (separate from Min/Max properties)
+    // Framerate=60, FastBlinkHz=15, value=100 → framesPerHalf=60/(2*15)=2. frame=2 → Color2.
     [Fact]
-    public void BlinkIntervalFrames_ClampedTo1()
+    public void Framerate60_Value100_Frame2_IsColor2()
     {
-        var effect = new BlinkEffect { BlinkIntervalFrames = 0 };
-        Assert.Equal(1, effect.BlinkIntervalFrames);
+        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var buffer = new Color[1];
+        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", Framerate = 60 };
+        Apply(effect, device, buffer, 100f, 2);
+        Assert.Equal(0x00, buffer[0].R);
+        Assert.Equal(0xFF, buffer[0].B);
     }
 }
