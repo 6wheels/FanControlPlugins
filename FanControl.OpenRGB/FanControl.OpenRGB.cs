@@ -35,8 +35,19 @@ namespace FanControl.OpenRGB
     // real OpenRGB SDK, so the engine stays unit-testable behind IOpenRgbBroker.
     private static IOpenRgbBroker Connect(OpenRgbConfig config)
     {
-      var client = new OpenRgbClient(name: "FanControl", ip: config.ServerIp, port: config.ServerPort);
-      client.Connect();
+      var client = new OpenRgbClient(name: "FanControl", ip: config.ServerIp, port: config.ServerPort, autoConnect: false);
+      try
+      {
+        client.Connect();
+      }
+      catch
+      {
+        // Connect failed: dispose the client so its background socket thread
+        // is not leaked. The engine retries, so a leak here would accumulate
+        // threads across reconnect attempts and starve the host.
+        client.Dispose();
+        throw;
+      }
       return new OpenRgbBroker(client);
     }
 

@@ -28,7 +28,9 @@ public class OpenRgbEngineTests
         Func<OpenRgbConfig, IOpenRgbBroker> connect,
         OpenRgbConfig? config = null,
         FakeTimeProvider? time = null)
-        => new(config ?? new OpenRgbConfig(), connect, (_, _) => { }, time ?? new FakeTimeProvider());
+        // isSuspended: () => false so the suspend gate never depends on the
+        // process-global lock file (which parallel LockFileTests toggle).
+        => new(config ?? new OpenRgbConfig(), connect, (_, _) => { }, time ?? new FakeTimeProvider(), () => false);
 
     // --- connect / happy path ---
 
@@ -165,13 +167,33 @@ public class OpenRgbEngineTests
     {
         var broker = BrokerWith("GPU");
         var engine = Engine(_ => broker);
+        engine.SetBindings([Binding("GPU", threshold: 0f, value: 100f)]);
 
         engine.Begin();
         engine.Tick(); // -> Running
+        engine.Tick(); // renders, commits GPU
         broker.Connected = false;
-        engine.Tick(); // detects drop -> Error
+        engine.Tick(); // commit throws while disconnected -> Error
 
         Assert.Equal(OpenRgbEngine.State.Error, engine.CurrentState);
+    }
+
+    [Fact]
+    public void TransientRenderError_WhileConnected_StaysRunning()
+    {
+        var broker = BrokerWith("GPU");
+        broker.FailUpdatesWhileConnected = 1; // one hiccup, still connected
+        var engine = Engine(_ => broker);
+        engine.SetBindings([Binding("GPU", threshold: 0f, value: 100f)]);
+
+        engine.Begin();
+        engine.Tick(); // -> Running
+        engine.Tick(); // commit throws once, but Connected -> stay Running
+
+        Assert.Equal(OpenRgbEngine.State.Running, engine.CurrentState);
+
+        engine.Tick(); // recovers, commits
+        Assert.NotEmpty(broker.UpdateLedsCalls);
     }
 
     [Fact]

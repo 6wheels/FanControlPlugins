@@ -17,6 +17,7 @@ internal sealed class OpenRgbEngine : IDisposable
     private readonly Func<OpenRgbConfig, IOpenRgbBroker> _connect;
     private readonly Action<string, LogLevel> _log;
     private readonly TimeProvider _time;
+    private readonly Func<bool> _isSuspended;
 
     private IOpenRgbBroker? _broker;
     private Device[] _devices = [];
@@ -40,12 +41,16 @@ internal sealed class OpenRgbEngine : IDisposable
         OpenRgbConfig config,
         Func<OpenRgbConfig, IOpenRgbBroker> connect,
         Action<string, LogLevel> log,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Func<bool>? isSuspended = null)
     {
         _config = config;
         _connect = connect;
         _log = log;
         _time = timeProvider ?? TimeProvider.System;
+        // DevToolkit takeover gate. Injectable so tests don't depend on a
+        // process-global temp file.
+        _isSuspended = isSuspended ?? (() => File.Exists(LockFile.Path));
     }
 
     // Bindings are swapped atomically (new list each time) so a concurrent tick
@@ -71,15 +76,16 @@ internal sealed class OpenRgbEngine : IDisposable
         _isTicking = true;
         try
         {
-            if (File.Exists(LockFile.Path)) return; // DevToolkit takeover gate
+            if (_isSuspended()) return; // DevToolkit takeover gate
             _state = Advance(_state);
         }
         catch (Exception ex)
         {
-            // Never let a tick exception escape the timer thread (it would
-            // terminate the host). Treat any failure as a connection error.
+            // Last-resort guard so nothing escapes the timer thread (an unhandled
+            // exception here terminates the host). Stay in the current state;
+            // handlers own their own recovery/backoff. Do NOT force a reconnect
+            // from here — a transient hiccup must not tear down the connection.
             _log($"Engine tick failed: {ex.Message}", LogLevel.Error);
-            _state = EnterError();
         }
         finally
         {
@@ -98,24 +104,35 @@ internal sealed class OpenRgbEngine : IDisposable
 
     private State HandleConnecting()
     {
-        _broker = _connect(_config);
-        _devices = _broker.GetAllControllerData();
-
-        _buffers = new Color[_devices.Length][];
-        _deviceNeedsUpdate = new bool[_devices.Length];
-        for (int i = 0; i < _devices.Length; i++)
-            _buffers[i] = _devices[i].Colors;
-
-        _retryCount = 0;
-        _log($"Connected. {_devices.Length} device(s) detected.", LogLevel.Info);
-
-        if (_config.Startup?.Effect != null)
+        try
         {
-            _startupStamp = _time.GetTimestamp();
-            _log($"Startup animation for {_config.Startup.DurationSeconds}s.", LogLevel.Info);
-            return State.Startup;
+            _broker = _connect(_config);
+            _devices = _broker.GetAllControllerData();
+
+            _buffers = new Color[_devices.Length][];
+            _deviceNeedsUpdate = new bool[_devices.Length];
+            for (int i = 0; i < _devices.Length; i++)
+                _buffers[i] = _devices[i].Colors;
+
+            _retryCount = 0;
+            _log($"Connected. {_devices.Length} device(s) detected.", LogLevel.Info);
+
+            if (_config.Startup?.Effect != null)
+            {
+                _startupStamp = _time.GetTimestamp();
+                _log($"Startup animation for {_config.Startup.DurationSeconds}s.", LogLevel.Info);
+                return State.Startup;
+            }
+            return State.Running;
         }
-        return State.Running;
+        catch (Exception ex)
+        {
+            // Self-gate the failure into a backed-off Error rather than letting it
+            // bubble to the tick guard, which would retry connect every frame.
+            _log($"Connection failed: {ex.Message}", LogLevel.Error);
+            DisposeBroker();
+            return EnterError();
+        }
     }
 
     private State HandleStartup()
@@ -130,10 +147,25 @@ internal sealed class OpenRgbEngine : IDisposable
 
     private State HandleRunning()
     {
-        if (_broker == null || !_broker.Connected) return EnterError();
-
-        RenderLayers(BuildContext(), _frameCount++);
-        return State.Running;
+        try
+        {
+            RenderLayers(BuildContext(), _frameCount++);
+            return State.Running;
+        }
+        catch (Exception ex)
+        {
+            // Only a genuine connection loss should tear down and reconnect.
+            // A transient render hiccup while still connected is logged and the
+            // frame skipped — keep rendering, never spin the reconnect loop.
+            if (_broker == null || !_broker.Connected)
+            {
+                _log($"Connection lost: {ex.Message}", LogLevel.Error);
+                DisposeBroker();
+                return EnterError();
+            }
+            _log($"Render frame failed: {ex.Message}", LogLevel.Error);
+            return State.Running;
+        }
     }
 
     private State HandleError()
