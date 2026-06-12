@@ -16,6 +16,7 @@ internal static class DeviceBuilder
         SetField(device, "<Name>k__BackingField", name);
         SetField(device, "<Zones>k__BackingField", new[] { zone });
         SetField(device, "<Leds>k__BackingField", leds);
+        SetField(device, "<Colors>k__BackingField", new Color[ledCount]);
         return device;
     }
 

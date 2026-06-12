@@ -3,11 +3,12 @@ using FanControl.OpenRGB.Effects;
 using FanControl.OpenRGB.Rules;
 using FanControl.OpenRGB.Toolkit;
 using OpenRGB.NET;
-using System.Diagnostics;
 using Xunit;
 
 namespace FanControl.OpenRGB.Tests.Plugin;
 
+// Covers the pure render helpers (OpenRgbEngine.RenderLayers / RenderStartupFrame).
+// Timing / state transitions are covered in OpenRgbEngineTests.
 public class RenderFrameTests
 {
     static (Device[] devices, Color[][] buffers) Setup(params string[] names)
@@ -31,11 +32,11 @@ public class RenderFrameTests
     }
 
     static void Render(FakeBroker broker, Device[] devices, Color[][] buffers,
-        List<RuleBinding> bindings, OpenRgbConfig? config = null, Stopwatch? sw = null)
+        List<RuleBinding> bindings, OpenRgbConfig? config = null)
     {
         var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length],
-            bindings, config ?? new OpenRgbConfig(), sw ?? new Stopwatch());
-        OpenRgbPlugin.RenderFrame(in ctx, 1);
+            bindings, config ?? new OpenRgbConfig());
+        OpenRgbEngine.RenderLayers(in ctx, 1);
     }
 
     // --- activation threshold ---
@@ -138,10 +139,10 @@ public class RenderFrameTests
         Assert.Equal(2, broker.UpdateLedsCalls.Count);
     }
 
-    // --- startup animation ---
+    // --- startup frame (pushes every device regardless of bindings) ---
 
     [Fact]
-    public void StartupActive_AllDevicesUpdated_BindingsSkipped()
+    public void RenderStartupFrame_UpdatesAllDevices()
     {
         var broker = new FakeBroker();
         var (devices, buffers) = Setup("GPU", "FAN");
@@ -149,27 +150,11 @@ public class RenderFrameTests
         {
             Startup = new StartupConfig { DurationSeconds = 60.0, Effect = new StaticEffect { ColorHex = "#0000FF", ModulateByValue = false } }
         };
-        var sw = Stopwatch.StartNew();
-        // binding would fire if startup didn't short-circuit
-        Render(broker, devices, buffers, [Binding("GPU", 0f, 100f)], config, sw);
-        Assert.Equal(2, broker.UpdateLedsCalls.Count); // startup updates all devices
-    }
+        var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length], [], config);
 
-    [Fact]
-    public void StartupExpired_YieldsToBindings()
-    {
-        var broker = new FakeBroker();
-        var (devices, buffers) = Setup("GPU");
-        var config = new OpenRgbConfig
-        {
-            Startup = new StartupConfig { DurationSeconds = 0.001, Effect = new StaticEffect { ColorHex = "#0000FF", ModulateByValue = false } }
-        };
-        var sw = Stopwatch.StartNew();
-        Thread.Sleep(5);
-        Render(broker, devices, buffers, [Binding("GPU", 0f, 100f)], config, sw);
-        // startup expired → only binding runs → 1 UpdateLeds for GPU
-        Assert.Single(broker.UpdateLedsCalls);
-        Assert.Equal(0, broker.UpdateLedsCalls[0].Index);
+        OpenRgbEngine.RenderStartupFrame(in ctx, 1);
+
+        Assert.Equal(2, broker.UpdateLedsCalls.Count);
     }
 }
 
