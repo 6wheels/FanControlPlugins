@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using FanControl.Plugins;
 using OpenRGB.NET;
@@ -27,38 +26,20 @@ namespace FanControl.OpenRGB
 
     private Stopwatch _startupStopwatch = new();
 
+    // Test seam: inject config directly without touching disk or the OpenRGB server.
+    internal OpenRgbPlugin(IPluginDialog dialog, IPluginLogger logger, OpenRgbConfig config)
+        : this(dialog, logger) => _config = config;
+
     public void Initialize()
     {
-      if (File.Exists(_configPath))
-      {
-        try
-        {
-          var options = new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
-          string json = File.ReadAllText(_configPath);
-          _config = JsonSerializer.Deserialize<OpenRgbConfig>(json, options) ?? new OpenRgbConfig();
+      var loaded = ConfigLoader.LoadOrCreate(_configPath, dialog, Log);
+      if (loaded == null) return; // template generated, nothing to drive yet
+      _config = loaded;
 
-          Log($"Configuration loaded. {_config.Rules.Count} rule(s) found.", LogLevel.Info);
-
-          string parsedConfigJson = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
-          Log($"Parsed configuration dump:\n{parsedConfigJson}", LogLevel.Debug);
-          Log($"Server IP: {_config.ServerIp}, Port: {_config.ServerPort}, Framerate: {_config.Framerate} FPS, LogLevel: {_config.LogLevel}", LogLevel.Debug);
-        }
-        catch (Exception ex)
-        {
-          Log($"Configuration failed: {ex.Message}", LogLevel.Error);
-        }
-      }
-      else
-      {
-        File.WriteAllText(_configPath, JsonSerializer.Serialize(new OpenRgbConfig(), new JsonSerializerOptions { WriteIndented = true }));
-        Log("Template configuration file generated. Please configure it.", LogLevel.Info);
-        dialog.ShowMessageDialog("OpenRGB: Template configuration file generated. Please configure it.");
-        return;
-      }
-
+      OpenRgbClient? client = null;
       try
       {
-        var client = new OpenRgbClient(name: "FanControl", ip: _config.ServerIp, port: _config.ServerPort);
+        client = new OpenRgbClient(name: "FanControl", ip: _config.ServerIp, port: _config.ServerPort);
         client.Connect();
         _broker = new OpenRgbBroker(client);
         _devices = _broker.GetAllControllerData();
@@ -84,6 +65,8 @@ namespace FanControl.OpenRGB
       catch (Exception ex)
       {
         Log($"Connection failed: {ex.Message}", LogLevel.Error);
+        // If ownership never transferred to the broker, the client would leak.
+        if (_broker == null) client?.Dispose();
       }
     }
 
@@ -117,6 +100,12 @@ namespace FanControl.OpenRGB
         if (_broker == null || !_broker.Connected || _physicalBuffers == null) return;
         _frameCount++;
         RenderFrame(_broker, _devices, _physicalBuffers, _bindings, _config, _startupStopwatch, _deviceNeedsUpdate, _frameCount);
+      }
+      catch (Exception ex)
+      {
+        // Never let a render exception escape the timer thread: an unhandled
+        // exception here terminates the host process. Degrade gracefully.
+        Log($"Render frame failed: {ex.Message}", LogLevel.Error);
       }
       finally
       {
@@ -207,8 +196,17 @@ namespace FanControl.OpenRGB
 
     public void Close()
     {
-      _renderTimer?.Dispose();
+      // Drain any in-flight tick before disposing the broker, otherwise a
+      // running RenderFrame could touch a disposed OpenRGB connection.
+      if (_renderTimer != null)
+      {
+        using var drained = new ManualResetEvent(false);
+        _renderTimer.Dispose(drained);
+        drained.WaitOne();
+        _renderTimer = null;
+      }
       _broker?.Dispose();
+      _broker = null;
     }
   }
 }

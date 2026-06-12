@@ -17,7 +17,13 @@ namespace FanControl.OpenRGB
     public LogLevel LogLevel { get; set; } = LogLevel.Info;
     public string ServerIp { get; set; } = "127.0.0.1";
     public int ServerPort { get; set; } = 6742;
-    public int Framerate { get; set; } = 30;
+
+    private int _framerate = 30;
+    public int Framerate
+    {
+      get => _framerate;
+      set => _framerate = Math.Clamp(value, 1, 240);
+    }
     public float TransitionSpeed { get; set; } = 0.1f;
     public StartupConfig? Startup { get; set; }
     public List<RuleConfig> Rules { get; set; } = [];

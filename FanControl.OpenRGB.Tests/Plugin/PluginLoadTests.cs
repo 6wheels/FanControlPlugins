@@ -6,16 +6,10 @@ namespace FanControl.OpenRGB.Tests.Plugin;
 
 public class PluginLoadTests
 {
-    static OpenRgbPlugin MakePlugin(OpenRgbConfig config)
-    {
-        var plugin = new OpenRgbPlugin(new FakeDialog(), new FakeLogger());
-        // Inject config via reflection — Initialize() needs a real connection,
-        // but Load() only reads _config and _devices (empty by default).
-        typeof(OpenRgbPlugin)
-            .GetField("_config", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .SetValue(plugin, config);
-        return plugin;
-    }
+    // Internal test-seam ctor injects config directly; Load() reads _config
+    // and _devices (empty by default), so no real connection is needed.
+    static OpenRgbPlugin MakePlugin(OpenRgbConfig config) =>
+        new(new FakeDialog(), new FakeLogger(), config);
 
     [Fact]
     public void Load_RegistersControlSensors_ForEachRule()
