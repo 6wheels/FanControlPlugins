@@ -13,6 +13,7 @@ namespace FanControl.OpenRGB.Effects
   [JsonDerivedType(typeof(SpatialGradientEffect), "SpatialGradient")]
   [JsonDerivedType(typeof(ProgressBarEffect), "ProgressBar")]
   [JsonDerivedType(typeof(GaugeGradientEffect), "GaugeGradient")]
+  [JsonDerivedType(typeof(RainbowEffect), "Rainbow")]
   /// <summary>
   /// Base class for all RGB effects used by the FanControl OpenRGB plugin and the developer toolkit.
   /// </summary>
