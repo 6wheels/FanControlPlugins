@@ -14,6 +14,7 @@ namespace FanControl.SystemMetrics
     private readonly string _configPath;
 
     private SystemMetricsConfig? _config;
+    private readonly List<MetricSensor> _sensors = [];
 
     public MetricsPlugin(IPluginDialog dialog, IPluginLogger logger)
     {
@@ -40,8 +41,10 @@ namespace FanControl.SystemMetrics
       {
         if (_config.EnabledMetrics.Contains(def.Key, StringComparer.OrdinalIgnoreCase))
         {
+          MetricSensor sensor = def.CreateSensor(_config);
+          _sensors.Add(sensor);
           // Injection into the temperature pool to bypass the UI filter
-          container.TempSensors.Add(def.CreateSensor());
+          container.TempSensors.Add(sensor);
           Log($"Metric '{def.Key}' enabled.");
         }
       }
@@ -49,6 +52,13 @@ namespace FanControl.SystemMetrics
 
     private void Log(string message) => _logger.Log($"[SystemMetrics] {message}");
 
-    public void Close() { }
+    public void Close()
+    {
+      foreach (MetricSensor sensor in _sensors)
+      {
+        sensor.Dispose();
+      }
+      _sensors.Clear();
+    }
   }
 }

@@ -45,6 +45,18 @@ public class PluginLoadTests
     }
 
     [Fact]
+    public void Close_AfterLoad_DisposesSensorsWithoutThrowing()
+    {
+        var plugin = Build(new SystemMetricsConfig());
+        var container = new FakeContainer();
+
+        plugin.Load(container);
+        var ex = Record.Exception(plugin.Close);
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
     public void Load_KeyMatchIsCaseInsensitive()
     {
         var plugin = Build(new SystemMetricsConfig { EnabledMetrics = ["cpuload"] });
