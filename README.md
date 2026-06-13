@@ -1,5 +1,7 @@
 # FanControl Plugins Collection
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](./LICENSE)
+
 This repository is a monorepo containing custom plugins for [FanControl](https://github.com/Rem0o/FanControl.Releases), a highly customizable fan management software for Windows. 
 
 The build and deployment process is fully automated. Every new release is built via GitHub Actions, and each plugin is published as a `.zip` archive (containing the compiled `.dll`) on the Releases page.
