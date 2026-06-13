@@ -36,11 +36,31 @@ jobs:
       tag: ${{ steps.plan.outputs.tag }}
       release_name: ${{ steps.plan.outputs.release_name }}
       prerelease: ${{ steps.plan.outputs.prerelease }}
+      has_builds: ${{ steps.plan.outputs.has_builds }}
     steps:
       - uses: actions/checkout@v5
 
+      # Nightly pushes only: detect which plugin dirs changed. A change to the
+      # solution or this workflow (which pins FANCONTROL_VERSION) forces a full
+      # build via the 'global' filter. Tags and manual dispatch skip this.
+      - name: Detect changed plugins
+        id: filter
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            FanControl.OpenRGB: ['FanControl.OpenRGB/**']
+            FanControl.Mqtt: ['FanControl.Mqtt/**']
+            FanControl.SystemMetrics: ['FanControl.SystemMetrics/**']
+            global:
+              - 'FanControlPlugins.sln'
+              - '.github/workflows/release.yml'
+
       - name: Plan release
         id: plan
+        env:
+          FILTER_CHANGES: ${{ steps.filter.outputs.changes }}
+          FILTER_GLOBAL: ${{ steps.filter.outputs.global }}
         run: |
           ALL='["FanControl.OpenRGB","FanControl.Mqtt","FanControl.SystemMetrics"]'
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
@@ -55,15 +75,24 @@ jobs:
               echo "tag=${TAG}"
               echo "release_name=${PLUGIN} v${VERSION}"
               echo "prerelease=false"
+              echo "has_builds=true"
             } >> "$GITHUB_OUTPUT"
           else
             SHA=$(git rev-parse --short HEAD)
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$FILTER_GLOBAL" == "true" ]]; then
+              PLUGINS="$ALL"                       # full validation
+            else
+              # Matched plugin filters, minus the synthetic 'global' entry.
+              PLUGINS=$(jq -cn --argjson c "${FILTER_CHANGES:-[]}" '$c - ["global"]')
+            fi
+            HAS_BUILDS=true; [[ "$PLUGINS" == "[]" ]] && HAS_BUILDS=false
             {
               echo "mode=nightly"
-              echo "plugins=${ALL}"
+              echo "plugins=${PLUGINS}"
               echo "tag=nightly"
               echo "release_name=Nightly build (${SHA})"
               echo "prerelease=true"
+              echo "has_builds=${HAS_BUILDS}"
             } >> "$GITHUB_OUTPUT"
           fi
 
@@ -93,6 +122,7 @@ jobs:
 
   build:
     needs: setup
+    if: needs.setup.outputs.has_builds == 'true'
     runs-on: windows-2025
     strategy:
       fail-fast: false
@@ -171,6 +201,7 @@ jobs:
 
   release:
     needs: [setup, build]
+    if: needs.setup.outputs.has_builds == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -214,11 +245,22 @@ jobs:
           } > changelog.md
           cat changelog.md
 
-      - name: Reset nightly release
+      # Keep a single rolling 'nightly' release that updates incrementally:
+      # move the tag to HEAD, then drop only the rebuilt plugins' stale zips so
+      # untouched plugins keep their previously uploaded assets.
+      - name: Refresh nightly tag and prune rebuilt zips
         if: needs.setup.outputs.mode == 'nightly'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release delete nightly --cleanup-tag --yes || true
+        run: |
+          set -euo pipefail
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin nightly
+          for p in $(jq -r '.[]' <<< '${{ needs.setup.outputs.plugins }}'); do
+            gh release view nightly --json assets -q '.assets[].name' 2>/dev/null \
+              | grep "^${p}-" \
+              | while read -r a; do gh release delete-asset nightly "$a" -y; done || true
+          done
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
