@@ -46,6 +46,8 @@ function Set-Result([string]$msg) {
 $proc = Get-Process FanControl -ErrorAction SilentlyContinue
 if ($proc) { $proc.Kill(); $proc.WaitForExit(5000) }
 
+if (-not (Test-Path $DestDir)) { New-Item -ItemType Directory -Path $DestDir -Force | Out-Null }
+
 Copy-Item $DllSrc $DestDir -Force
 
 $dest = Join-Path $DestDir (Split-Path $DllSrc -Leaf)
