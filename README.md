@@ -96,9 +96,10 @@ Versions are **per plugin** and live entirely in git tags — there are no versi
 
 * **Final release** — push a tag shaped `<Plugin>/v<semver>`, which builds and releases only that plugin at that exact version:
   ```bash
-  git tag FanControl.OpenRGB/v1.2.0
+  git tag -a FanControl.OpenRGB/v1.2.0 -m "FanControl.OpenRGB v1.2.0"
   git push origin FanControl.OpenRGB/v1.2.0
   ```
+  An annotated tag (`-a -m`) is recommended over a lightweight one so the tag records the tagger, date, and a message — the workflow accepts either form.
 * **Nightly** — every push to `main` (or a manual run) builds all plugins into one rolling `nightly` pre-release. Each artifact previews the plugin's **next** version as `<next>-dev.<short-sha>`, where the bump is derived from the Conventional Commits touching that plugin since its last tag:
 
   | Commits since the plugin's last tag | Bump |
