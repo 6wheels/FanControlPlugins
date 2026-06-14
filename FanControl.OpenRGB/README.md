@@ -112,6 +112,11 @@ If you built the project in Visual Studio, simply double-click the `FanControl.O
 Open a terminal in the `FanControl.OpenRGB` directory and run:
 `dotnet.exe run`
 
+**Non-interactive scan (CI / scripting)**
+Pass `--scan` to run the Hardware Scanner once and exit, skipping the interactive
+menu and the `ESC`-to-return wait. Useful when stdin is redirected:
+`dotnet.exe run -- --scan`
+
 ### Features of the Toolkit
 When launched, the Dev Toolkit automatically creates a `fancontrol_rgb.lock` file. This tells the FanControl background plugin to pause its rendering loop, preventing USB port conflicts.
 1. **Hardware Scanner:** Scans your setup and prints OpenRGB device, zone, and LED details, including matrix dimensions when available. This output is useful for constructing `DeviceRegex`, `ZoneRegex`, and `LEDRegex` filters.

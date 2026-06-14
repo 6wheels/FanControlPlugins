@@ -77,6 +77,13 @@ namespace FanControl.OpenRGB
           }
         }
 
+        // --- NON-INTERACTIVE SCAN (CI / redirected stdin) ---
+        if (args.Contains("--scan"))
+        {
+          RunHardwareScanner(broker!, wait: false);
+          return;
+        }
+
         // --- MAIN MENU ---
         bool isRunning = true;
         while (isRunning)
@@ -121,7 +128,7 @@ namespace FanControl.OpenRGB
       }
     }
 
-    private static void RunHardwareScanner(IOpenRgbBroker broker)
+    private static void RunHardwareScanner(IOpenRgbBroker broker, bool wait = true)
     {
       var devices = broker.GetAllControllerData();
       Console.WriteLine("\n");
@@ -195,6 +202,8 @@ namespace FanControl.OpenRGB
         Console.WriteLine(new string('-', 60));
         Console.WriteLine();
       }
+
+      if (!wait) return;
 
       Console.WriteLine("\nPress [ESCAPE] to return to Main Menu...");
       while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
