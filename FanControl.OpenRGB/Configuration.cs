@@ -27,7 +27,61 @@ namespace FanControl.OpenRGB
     public float TransitionSpeed { get; set; } = 0.1f;
     public StartupConfig? Startup { get; set; }
     public ReconnectConfig Reconnect { get; set; } = new();
+    public NzxtConfig? Nzxt { get; set; }
     public List<RuleConfig> Rules { get; set; } = [];
+  }
+
+  // Command-sink configuration. NZXT RGB is driven through the LiquidCtl bridge
+  // (same serialized HID queue as the fans) instead of OpenRGB.exe, to avoid USB
+  // contention. Each target's channels are registered as synthetic devices in the
+  // same targeting namespace the rules' DeviceRegex already searches.
+  public class NzxtConfig
+  {
+    public bool Enabled { get; set; } = false;
+
+    // Name of the LiquidCtl bridge named pipe (without the \\.\pipe\ prefix).
+    public string PipeName { get; set; } = "LiquidCtlPipe";
+
+    private int _refreshHz = 5;
+    // Upper bound on command-sink pushes; the NZXT firmware drops rapid commands,
+    // so this stays low. A buffer diff suppresses redundant frames on top of this.
+    public int RefreshHz
+    {
+      get => _refreshHz;
+      set => _refreshHz = Math.Clamp(value, 1, 30);
+    }
+
+    public List<NzxtTarget> Targets { get; set; } = [];
+  }
+
+  public class NzxtTarget
+  {
+    // Matched against each rule's DeviceRegex (synthetic device name).
+    public string Name { get; set; } = string.Empty;
+
+    // liquidctl device-match string passed to the bridge. Defaults to Name.
+    private string? _deviceMatch;
+    public string DeviceMatch
+    {
+      get => string.IsNullOrEmpty(_deviceMatch) ? Name : _deviceMatch;
+      set => _deviceMatch = value;
+    }
+
+    public List<NzxtChannel> Channels { get; set; } = [];
+  }
+
+  public class NzxtChannel
+  {
+    // liquidctl channel name (ring/logo for Kraken, led1/led2 for Smart Device).
+    // Also the synthetic zone name, so a rule's ZoneRegex can target one channel.
+    public string Name { get; set; } = string.Empty;
+
+    private int _ledCount = 1;
+    public int LedCount
+    {
+      get => _ledCount;
+      set => _ledCount = Math.Max(1, value);
+    }
   }
 
   public class StartupConfig
