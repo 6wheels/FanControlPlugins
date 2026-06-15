@@ -1,7 +1,7 @@
 name: Release
 
 # Per-plugin releases for the monorepo.
-#   Final   -> push a tag  <Plugin>/v<semver>  e.g. FanControl.OpenRGB/v1.2.0
+#   Final   -> push a tag  <Plugin>/v<semver>  e.g. FanControl.Rgb/v1.2.0
 #              Builds & releases ONLY that plugin; version comes from the tag.
 #   Nightly -> push to main / run manually. Builds ALL plugins into one
 #              rolling 'nightly' prerelease; each zip is versioned
@@ -49,7 +49,7 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            FanControl.OpenRGB: ['FanControl.OpenRGB/**']
+            FanControl.Rgb: ['FanControl.Rgb/**']
             FanControl.Mqtt: ['FanControl.Mqtt/**']
             FanControl.SystemMetrics: ['FanControl.SystemMetrics/**']
             global:
@@ -62,10 +62,10 @@ jobs:
           FILTER_CHANGES: ${{ steps.filter.outputs.changes }}
           FILTER_GLOBAL: ${{ steps.filter.outputs.global }}
         run: |
-          ALL='["FanControl.OpenRGB","FanControl.Mqtt","FanControl.SystemMetrics"]'
+          ALL='["FanControl.Rgb","FanControl.Mqtt","FanControl.SystemMetrics"]'
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"        # FanControl.OpenRGB/v1.2.0
-            PLUGIN="${TAG%/v*}"                   # FanControl.OpenRGB
+            TAG="${GITHUB_REF#refs/tags/}"        # FanControl.Rgb/v1.2.0
+            PLUGIN="${TAG%/v*}"                   # FanControl.Rgb
             VERSION="${TAG##*/v}"                 # 1.2.0
             {
               echo "mode=final"
@@ -237,7 +237,7 @@ jobs:
             else
               echo "## Nightly build"
               echo
-              for p in FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics; do
+              for p in FanControl.Rgb FanControl.Mqtt FanControl.SystemMetrics; do
                 LOG=$(changelog_for "$p")
                 if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
               done
