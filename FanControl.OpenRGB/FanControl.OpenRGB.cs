@@ -29,7 +29,7 @@ namespace FanControl.OpenRGB
     {
       _dialog = dialog;
       _logger = logger;
-      _configPath = Path.Combine(AppContext.BaseDirectory, "OpenRGBConfig.json");
+      _configPath = Path.Combine(PluginDirectory(), "OpenRGBConfig.json");
       _connect = Connect;
       _connectNzxt = ConnectNzxt;
       _time = TimeProvider.System;
@@ -140,6 +140,14 @@ namespace FanControl.OpenRGB
     {
       _engine?.Dispose();
       _nzxtRenderer?.Dispose();
+    }
+
+    // Resolve the plugin's own folder (next to its DLL under Plugins\), not the
+    // host's working directory, so the config sits beside the plugin.
+    private static string PluginDirectory()
+    {
+      var dir = Path.GetDirectoryName(typeof(OpenRgbPlugin).Assembly.Location);
+      return string.IsNullOrEmpty(dir) ? AppContext.BaseDirectory : dir;
     }
   }
 }
