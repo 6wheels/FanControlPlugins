@@ -2,7 +2,10 @@
 
 [![Build](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml/badge.svg)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) [![Coverage](https://codecov.io/gh/6wheels/FanControlPlugins/branch/main/graph/badge.svg?flag=FanControl.Rgb)](https://codecov.io/gh/6wheels/FanControlPlugins)
 
-A FanControl plugin that turns your hardware cooling logic into dynamic RGB lighting effects. By communicating directly with the OpenRGB SDK, this plugin maps any FanControl sensor (temperature, fan curve, mix) to specific RGB zones or devices.
+A FanControl plugin that turns your hardware cooling logic into dynamic RGB lighting effects. It maps any FanControl sensor (temperature, fan curve, mix) to RGB zones or devices through two sinks:
+
+- **OpenRGB SDK (frame sink)** — full per-LED animation for most hardware.
+- **LiquidCtl bridge (command sink)** — NZXT devices (Kraken, Smart Device V2) driven through the LiquidCtl plugin's bridge, so NZXT RGB rides the same USB HID queue as its pump/fan control and never contends with it. See [NZXT devices](#nzxt-devices-command-sink).
 
 ## Features
 * **Regex Targeting:** Target specific devices (e.g., `.*Alloy.*`) or zones (e.g., `Keyboard`) effortlessly.
@@ -21,9 +24,14 @@ A FanControl plugin that turns your hardware cooling logic into dynamic RGB ligh
 
 ## 📝 Configuration
 
-Upon the first launch, the plugin creates an `OpenRGBConfig.json` file in your FanControl folder. You can configure global behaviors, the startup animation, and your hardware rules.
+Upon the first launch, the plugin creates an `RGBConfig.json` file in the plugin folder (`…\FanControl\Plugins\FanControl.Rgb\`). You can configure global behaviors, the startup animation, and your hardware rules.
 
-### Example `OpenRGBConfig.json`
+> **Upgrading from FanControl.OpenRGB?** The config moved out of the FanControl
+> application folder into the plugin folder and was renamed `OpenRGBConfig.json`
+> → `RGBConfig.json`. Move your file accordingly, or let the plugin regenerate a
+> template on first run.
+
+### Example `RGBConfig.json`
 
 ```json
 {
@@ -73,6 +81,59 @@ The plugin drives RGB through a small state machine: it connects to the OpenRGB 
 - `Reconnect.DelaySeconds` — delay between attempts. Default `5`.
 
 Once retries are exhausted the engine stops driving LEDs and logs; restart FanControl (or fix the server) to recover. Transient render errors while still connected are skipped without tearing down the connection.
+
+### NZXT devices (command sink)
+OpenRGB and the LiquidCtl plugin cannot both own an NZXT USB HID at once — that
+contention causes liquidctl timeouts and stalled fans. So NZXT RGB is driven
+**through the LiquidCtl bridge** instead of OpenRGB.exe, sharing the one
+serialized HID queue.
+
+**Two setup requirements:**
+1. Run a LiquidCtl bridge build that exposes the RGB pipe (the `set.led` command
+   and the dedicated `LiquidCtlPipeRgb` pipe).
+   > **Note:** this RGB endpoint is **not yet in upstream LiquidCtl**. Until it is
+   > reviewed and merged by the LiquidCtl developer, a forked build is required:
+   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink).
+   > Once merged upstream, use the official release instead.
+2. In OpenRGB, **disable/blacklist the NZXT devices** so OpenRGB.exe never opens
+   that HID. liquidctl must be the sole owner.
+
+Add an `Nzxt` block to `RGBConfig.json`. Each target's `Name` is matched by the
+rules' `DeviceRegex`; channels become 1D zones (so `ZoneRegex` can target one
+channel). Effects render per-LED and are pushed via liquidctl `super-fixed`,
+throttled to `RefreshHz` and only when a channel's colours change.
+
+```json
+"Nzxt": {
+  "Enabled": true,
+  "PipeName": "LiquidCtlPipeRgb",
+  "RefreshHz": 5,
+  "Targets": [
+    {
+      "Name": "Kraken X63",
+      "DeviceMatch": "Kraken",
+      "Channels": [
+        { "Name": "ring", "LedCount": 8 },
+        { "Name": "logo", "LedCount": 1 }
+      ]
+    },
+    {
+      "Name": "Smart Device V2",
+      "DeviceMatch": "Smart Device",
+      "Channels": [
+        { "Name": "led1", "LedCount": 10 },
+        { "Name": "led2", "LedCount": 10 }
+      ]
+    }
+  ]
+}
+```
+
+`DeviceMatch` is matched against the liquidctl device description (defaults to
+`Name`). `LedCount` per channel must match your actual strip length. Because the
+NZXT firmware drops rapid commands, animated effects run at the reduced
+`RefreshHz` rate; value-driven effects (gradient, gauge, progress) update on
+change and look smooth.
 
 ### Understanding Rules
 Once the plugin loads the JSON, you will see a new custom sensor card in FanControl for each rule (e.g., "GPU High Temp Warning").
