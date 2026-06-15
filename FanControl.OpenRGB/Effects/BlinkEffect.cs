@@ -1,5 +1,7 @@
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class BlinkEffect : BaseRgbEffect
@@ -24,7 +26,7 @@ namespace FanControl.OpenRGB.Effects
 
     private const int Framerate = 30;
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);

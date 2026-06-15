@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -33,7 +35,7 @@ namespace FanControl.OpenRGB.Effects
 
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
@@ -62,7 +64,7 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
                 {
-                  string ledName = device.Leds[ledOffset + ledIndex].Name;
+                  string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
 
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {

@@ -1,5 +1,7 @@
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class BreathingEffect : BaseRgbEffect
@@ -10,7 +12,7 @@ namespace FanControl.OpenRGB.Effects
     public float MinSpeed { get; set; } = 0.02f;
     public float MaxSpeed { get; set; } = 0.15f;
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color baseCol = ParseHex(BaseColorHex);
       Color peakCol = ParseHex(PeakColorHex);

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class ProgressBarEffect : BaseRgbEffect
@@ -10,7 +12,7 @@ namespace FanControl.OpenRGB.Effects
     public string FillColorHex { get; set; } = "#FF0000";
     public string EmptyColorHex { get; set; } = "Transparent"; // "Transparent" or Hexadecimal
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color fillCol = ParseHex(FillColorHex);
       bool isTransparent = string.IsNullOrEmpty(EmptyColorHex) || EmptyColorHex.Equals("Transparent", StringComparison.OrdinalIgnoreCase);

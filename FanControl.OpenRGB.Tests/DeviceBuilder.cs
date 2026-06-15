@@ -1,11 +1,19 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using FanControl.OpenRGB.Toolkit.Rendering;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Tests;
 
 internal static class DeviceBuilder
 {
+    // IRgbDevice variants for effect tests, which render through the abstraction.
+    public static IRgbDevice MakeRenderDevice(string name, int ledCount)
+        => new OpenRgbDeviceAdapter(MakeDevice(name, ledCount));
+
+    public static IRgbDevice MakeRenderMatrixDevice(string name, uint width, uint height)
+        => new OpenRgbDeviceAdapter(MakeMatrixDevice(name, width, height));
+
     public static Device MakeDevice(string name, int ledCount)
     {
         var leds = Enumerable.Range(1, ledCount)

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class GaugeGradientEffect : BaseRgbEffect
@@ -10,7 +12,7 @@ namespace FanControl.OpenRGB.Effects
     public string ColorMinHex { get; set; } = "#00FF00";
     public string ColorMaxHex { get; set; } = "#FF0000";
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color baseMin = ParseHex(ColorMinHex);
       Color baseMax = ParseHex(ColorMaxHex);
@@ -36,7 +38,7 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
                 {
-                  string ledName = device.Leds[ledOffset + ledIndex].Name;
+                  string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
                     targetLeds.Add(ledOffset + (int)ledIndex);

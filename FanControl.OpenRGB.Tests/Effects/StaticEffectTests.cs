@@ -11,7 +11,7 @@ public class StaticEffectTests
     [Fact]
     public void ModulateByValue_True_Value0_IsBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new StaticEffect { ColorHex = "#FFFFFF" };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -24,7 +24,7 @@ public class StaticEffectTests
     [Fact]
     public void ModulateByValue_True_Value100_IsFullColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new StaticEffect { ColorHex = "#FF8040" };
         effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
@@ -37,7 +37,7 @@ public class StaticEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_IsFullColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new StaticEffect { ColorHex = "#FF8040", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -50,7 +50,7 @@ public class StaticEffectTests
     [Fact]
     public void TransitionSpeed_Half_InterpolatesColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1]; // starts black
         var effect = new StaticEffect { ColorHex = "#FF0000", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 100f, 0, 0.5f, [buffer]);

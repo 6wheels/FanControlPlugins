@@ -1,3 +1,4 @@
+using FanControl.OpenRGB.Toolkit.Rendering;
 using FanControl.OpenRGB;
 using FanControl.OpenRGB.Effects;
 using FanControl.OpenRGB.Rules;
@@ -11,9 +12,9 @@ namespace FanControl.OpenRGB.Tests.Plugin;
 // Timing / state transitions are covered in OpenRgbEngineTests.
 public class RenderFrameTests
 {
-    static (Device[] devices, Color[][] buffers) Setup(params string[] names)
+    static (IRgbDevice[] devices, Color[][] buffers) Setup(params string[] names)
     {
-        var devices = names.Select(n => DeviceBuilder.MakeDevice(n, 1)).ToArray();
+        var devices = names.Select(n => DeviceBuilder.MakeRenderDevice(n, 1)).ToArray();
         var buffers = devices.Select(_ => new Color[1]).ToArray();
         return (devices, buffers);
     }
@@ -31,7 +32,7 @@ public class RenderFrameTests
         return new RuleBinding(config, control);
     }
 
-    static void Render(FakeBroker broker, Device[] devices, Color[][] buffers,
+    static void Render(FakeBroker broker, IRgbDevice[] devices, Color[][] buffers,
         List<RuleBinding> bindings, OpenRgbConfig? config = null)
     {
         var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length],
@@ -160,6 +161,6 @@ public class RenderFrameTests
 
 internal sealed class CaptureEffect(Action<float> capture) : BaseRgbEffect
 {
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
         => capture(value);
 }

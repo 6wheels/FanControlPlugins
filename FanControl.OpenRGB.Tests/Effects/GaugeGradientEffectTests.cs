@@ -11,7 +11,7 @@ public class GaugeGradientEffectTests
     [Fact]
     public void ModulateByValue_True_Value100_AllColorMax()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
         effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
@@ -22,7 +22,7 @@ public class GaugeGradientEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_AllColorMax()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -33,7 +33,7 @@ public class GaugeGradientEffectTests
     [Fact]
     public void MatrixDevice_Value100_AllColorMax()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 4, 2);
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2);
         var buffer = new Color[8];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
         effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
@@ -46,7 +46,7 @@ public class GaugeGradientEffectTests
     [Fact]
     public void ModulateByValue_True_Value0_GlowAtBoundary()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);

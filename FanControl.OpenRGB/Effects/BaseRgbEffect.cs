@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using FanControl.OpenRGB.Toolkit.Rendering;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Effects
@@ -30,7 +31,7 @@ namespace FanControl.OpenRGB.Effects
     /// <summary>
     /// Runs the effect on every device whose name matches the configured device regex.
     /// </summary>
-    public void Apply(Device[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
+    public void Apply(IRgbDevice[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, float transitionSpeed, Color[][] frameBuffers)
     {
       if (IsFinished) return;
       for (int i = 0; i < devices.Length; i++)
@@ -43,9 +44,9 @@ namespace FanControl.OpenRGB.Effects
       }
     }
 
-    protected abstract void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer);
+    protected abstract void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer);
 
-    protected static void ApplyToTargetLeds(Device device, string? zoneRegex, string? ledRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
+    protected static void ApplyToTargetLeds(IRgbDevice device, string? zoneRegex, string? ledRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
     {
       static Color LerpColor(Color current, Color target, float speed)
       {

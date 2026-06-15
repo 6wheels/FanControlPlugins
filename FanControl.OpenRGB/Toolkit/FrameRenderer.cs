@@ -1,4 +1,5 @@
 using FanControl.OpenRGB.Effects;
+using FanControl.OpenRGB.Toolkit.Rendering;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Toolkit;
@@ -17,7 +18,8 @@ internal static class FrameRenderer
         float transitionSpeed,
         Color[][] frameBuffers)
     {
-        effect.Apply(devices, deviceRegex, zoneRegex, ledRegex, value, frame, transitionSpeed, frameBuffers);
+        var renderDevices = Array.ConvertAll(devices, d => (IRgbDevice)new OpenRgbDeviceAdapter(d));
+        effect.Apply(renderDevices, deviceRegex, zoneRegex, ledRegex, value, frame, transitionSpeed, frameBuffers);
         for (int i = 0; i < frameBuffers.Length; i++)
             broker.UpdateLeds(i, frameBuffers[i]);
     }

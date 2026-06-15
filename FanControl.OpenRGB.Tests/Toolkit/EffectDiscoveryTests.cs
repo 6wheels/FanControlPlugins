@@ -1,3 +1,4 @@
+using FanControl.OpenRGB.Toolkit.Rendering;
 using System.Reflection;
 using FanControl.OpenRGB.Effects;
 using FanControl.OpenRGB.Toolkit;
@@ -68,5 +69,5 @@ public class EffectDiscoveryTests
 // works against an arbitrary assembly.
 internal sealed class LocalProbeEffect : BaseRgbEffect
 {
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer) { }
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer) { }
 }

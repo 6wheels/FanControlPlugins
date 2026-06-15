@@ -11,7 +11,7 @@ public class BreathingEffectTests
     [Fact]
     public void Frame0_IsMidpointColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new BreathingEffect { BaseColorHex = "#000000", PeakColorHex = "#0000FF" };
         effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
@@ -27,12 +27,12 @@ public class BreathingEffectTests
     [Fact]
     public void ModulateByValue_True_DifferentValues_GiveDifferentColors()
     {
-        var dev0 = DeviceBuilder.MakeDevice("GPU", 1);
+        var dev0 = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buf0 = new Color[1];
         var effectLow = new BreathingEffect { BaseColorHex = "#000000", PeakColorHex = "#0000FF", ModulateByValue = true };
         effectLow.Apply([dev0], "GPU", null, null, 0f, 100, 1f, [buf0]);
 
-        var dev100 = DeviceBuilder.MakeDevice("GPU", 1);
+        var dev100 = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buf100 = new Color[1];
         var effectHigh = new BreathingEffect { BaseColorHex = "#000000", PeakColorHex = "#0000FF", ModulateByValue = true };
         effectHigh.Apply([dev100], "GPU", null, null, 100f, 100, 1f, [buf100]);
@@ -44,12 +44,12 @@ public class BreathingEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_MatchesMaxSpeed()
     {
-        var devFalse = DeviceBuilder.MakeDevice("GPU", 1);
+        var devFalse = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var bufFalse = new Color[1];
         var effectFalse = new BreathingEffect { BaseColorHex = "#000000", PeakColorHex = "#0000FF", ModulateByValue = false };
         effectFalse.Apply([devFalse], "GPU", null, null, 0f, 100, 1f, [bufFalse]);
 
-        var devTrue = DeviceBuilder.MakeDevice("GPU", 1);
+        var devTrue = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var bufTrue = new Color[1];
         var effectTrue = new BreathingEffect { BaseColorHex = "#000000", PeakColorHex = "#0000FF", ModulateByValue = true };
         effectTrue.Apply([devTrue], "GPU", null, null, 100f, 100, 1f, [bufTrue]);

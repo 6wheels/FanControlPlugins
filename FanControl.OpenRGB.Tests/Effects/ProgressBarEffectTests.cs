@@ -12,7 +12,7 @@ public class ProgressBarEffectTests
     [Fact]
     public void Value0_TransparentEmpty_BufferUntouched()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         buffer[0] = new Color(0x11, 0x11, 0x11);
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
@@ -24,7 +24,7 @@ public class ProgressBarEffectTests
     [Fact]
     public void Value100_AllLedsFilled()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
         effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
@@ -35,7 +35,7 @@ public class ProgressBarEffectTests
     [Fact]
     public void Value50_HalfFilled()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
         effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
@@ -49,7 +49,7 @@ public class ProgressBarEffectTests
     [Fact]
     public void NonTransparentEmpty_UnfilledLedsGetEmptyColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "#0000FF" };
         effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
@@ -63,7 +63,7 @@ public class ProgressBarEffectTests
     [Fact]
     public void MatrixDevice_Value50_HalfFilled()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 4, 2); // 8 LEDs total
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2); // 8 LEDs total
         var buffer = new Color[8];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
         effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);

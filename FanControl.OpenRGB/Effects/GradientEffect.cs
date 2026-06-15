@@ -1,5 +1,7 @@
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class GradientEffect : BaseRgbEffect
@@ -7,7 +9,7 @@ namespace FanControl.OpenRGB.Effects
     public string ColorMinHex { get; set; } = "#00FF00";
     public string ColorMaxHex { get; set; } = "#FF0000";
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       Color colorMin = ParseHex(ColorMinHex);
       Color colorMax = ParseHex(ColorMaxHex);

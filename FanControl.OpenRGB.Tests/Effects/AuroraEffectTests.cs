@@ -11,7 +11,7 @@ public class AuroraEffectTests
     [Fact]
     public void ModulateByValue_True_Value0_IsBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = true };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -23,7 +23,7 @@ public class AuroraEffectTests
     [Fact]
     public void ModulateByValue_True_Value100_NonBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = true };
         effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
@@ -34,7 +34,7 @@ public class AuroraEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_NonBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -45,7 +45,7 @@ public class AuroraEffectTests
     [Fact]
     public void DeviceRegex_NoMatch_BufferUntouched()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[] { new Color(0x11, 0x22, 0x33) };
         new AuroraEffect().Apply([device], "CPU", null, null, 100f, 1, 1f, [buffer]);
         Assert.Equal(0x11, buffer[0].R);
@@ -55,7 +55,7 @@ public class AuroraEffectTests
     [Fact]
     public void MatrixDevice_Value100_NonBlack()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 5, 3);
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 5, 3);
         var buffer = new Color[15];
         var effect = new AuroraEffect { ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 1, 1f, [buffer]);
@@ -66,7 +66,7 @@ public class AuroraEffectTests
     [Fact]
     public void VerticalDirection_MatrixDevice_NonBlack()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 5, 3);
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 5, 3);
         var buffer = new Color[15];
         var effect = new AuroraEffect { Direction = AuroraDirection.Vertical, ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 1, 1f, [buffer]);

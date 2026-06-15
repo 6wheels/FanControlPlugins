@@ -1,4 +1,5 @@
 using FanControl.OpenRGB.Rules;
+using FanControl.OpenRGB.Toolkit.Rendering;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Toolkit;
@@ -21,6 +22,7 @@ internal sealed class OpenRgbEngine : IDisposable
 
     private IOpenRgbBroker? _broker;
     private Device[] _devices = [];
+    private IRgbDevice[] _renderDevices = [];
     private Color[][] _buffers = [];
     private bool[] _deviceNeedsUpdate = [];
     private int _frameCount;
@@ -108,6 +110,9 @@ internal sealed class OpenRgbEngine : IDisposable
         {
             _broker = _connect(_config);
             _devices = _broker.GetAllControllerData();
+            // Wrap once per connect (not per frame) so the render loop stays
+            // allocation-free; index alignment with the broker's Device[] holds.
+            _renderDevices = Array.ConvertAll(_devices, d => (IRgbDevice)new OpenRgbDeviceAdapter(d));
 
             _buffers = new Color[_devices.Length][];
             _deviceNeedsUpdate = new bool[_devices.Length];
@@ -192,7 +197,7 @@ internal sealed class OpenRgbEngine : IDisposable
     }
 
     private RenderContext BuildContext() =>
-        new(_broker!, _devices, _buffers, _deviceNeedsUpdate, _bindings, _config);
+        new(_broker!, _renderDevices, _buffers, _deviceNeedsUpdate, _bindings, _config);
 
     // --- Pure render helpers (effect logic untouched, kept static + testable) ---
 

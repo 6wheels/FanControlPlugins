@@ -11,7 +11,7 @@ public class SpatialGradientEffectTests
     [Fact]
     public void FirstLed_IsColorMin()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -24,7 +24,7 @@ public class SpatialGradientEffectTests
     [Fact]
     public void LastLed_IsColorMax()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -37,7 +37,7 @@ public class SpatialGradientEffectTests
     [Fact]
     public void ModulateByValue_True_Value0_IsBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ModulateByValue = true };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -48,7 +48,7 @@ public class SpatialGradientEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_ColorsVisible()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 4);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -59,7 +59,7 @@ public class SpatialGradientEffectTests
     [Fact]
     public void MatrixDevice_FirstColumn_IsColorMin_LastColumn_IsColorMax()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 4, 2); // 4 wide, 2 tall, 8 LEDs
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2); // 4 wide, 2 tall, 8 LEDs
         var buffer = new Color[8];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);

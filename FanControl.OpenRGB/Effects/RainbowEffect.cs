@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using OpenRGB.NET;
 
+using FanControl.OpenRGB.Toolkit.Rendering;
+
 namespace FanControl.OpenRGB.Effects
 {
   public class RainbowEffect : BaseRgbEffect
@@ -8,7 +10,7 @@ namespace FanControl.OpenRGB.Effects
     public float Speed { get; set; } = 1.0f;
     public float Spread { get; set; } = 1.0f;
 
-    protected override void ProcessEffect(Device device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
     {
       float brightness = ModulateByValue ? Math.Clamp(value / 100f, 0f, 1f) : 1f;
 
@@ -28,7 +30,7 @@ namespace FanControl.OpenRGB.Effects
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
                 if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
                 {
-                  string ledName = device.Leds[ledOffset + ledIndex].Name;
+                  string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
                     float hue = ((frameCount * Speed + (int)ledIndex * Spread) % 360f + 360f) % 360f;

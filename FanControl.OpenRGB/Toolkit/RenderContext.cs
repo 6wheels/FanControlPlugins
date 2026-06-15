@@ -1,4 +1,5 @@
 using FanControl.OpenRGB.Rules;
+using FanControl.OpenRGB.Toolkit.Rendering;
 using OpenRGB.NET;
 
 namespace FanControl.OpenRGB.Toolkit;
@@ -11,7 +12,7 @@ namespace FanControl.OpenRGB.Toolkit;
 internal readonly record struct RenderContext(
     // Hardware
     IOpenRgbBroker Broker,
-    Device[] Devices,
+    IRgbDevice[] Devices,
     // Frame buffers
     Color[][] Buffers,
     bool[] DeviceNeedsUpdate,

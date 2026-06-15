@@ -12,7 +12,7 @@ public class RainbowEffectTests
     [Fact]
     public void Spread_Zero_AllLedsGetSameColor()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 3);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 3);
         var buffer = new Color[3];
         var effect = new RainbowEffect { Spread = 0f, ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 10, 1f, [buffer]);
@@ -29,7 +29,7 @@ public class RainbowEffectTests
     [Fact]
     public void Spread_NonZero_AdjacentLedsGetDifferentColors()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 2);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 2);
         var buffer = new Color[2];
         var effect = new RainbowEffect { Spread = 60f, Speed = 0f, ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -42,9 +42,9 @@ public class RainbowEffectTests
     [Fact]
     public void Speed_AdvancesHuePerFrame()
     {
-        var dev0 = DeviceBuilder.MakeDevice("GPU", 1);
+        var dev0 = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buf0 = new Color[1];
-        var dev90 = DeviceBuilder.MakeDevice("GPU", 1);
+        var dev90 = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buf90 = new Color[1];
         var effect0  = new RainbowEffect { Speed = 1f, Spread = 0f, ModulateByValue = false };
         var effect90 = new RainbowEffect { Speed = 1f, Spread = 0f, ModulateByValue = false };
@@ -58,7 +58,7 @@ public class RainbowEffectTests
     [Fact]
     public void ModulateByValue_True_Value0_IsBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 3);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 3);
         var buffer = new Color[3];
         var effect = new RainbowEffect { ModulateByValue = true };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -69,7 +69,7 @@ public class RainbowEffectTests
     [Fact]
     public void ModulateByValue_False_Value0_IsNotBlack()
     {
-        var device = DeviceBuilder.MakeDevice("GPU", 1);
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
         var effect = new RainbowEffect { ModulateByValue = false, Speed = 0f, Spread = 0f };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
@@ -92,7 +92,7 @@ public class RainbowEffectTests
     [Fact]
     public void MatrixDevice_NonBlack()
     {
-        var device = DeviceBuilder.MakeMatrixDevice("GPU", 4, 3);
+        var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 3);
         var buffer = new Color[12];
         var effect = new RainbowEffect { ModulateByValue = false };
         effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
