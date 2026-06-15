@@ -16,6 +16,13 @@ internal sealed class NzxtBridge : INzxtBridge
 {
     private const int ConnectTimeoutMs = 500;
 
+    // The bridge decodes lower-case JSON keys (msgspec structs: command, data,
+    // device, channel, mode, colors).
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly string _pipeName;
     private readonly Action<string, LogLevel> _log;
     private readonly object _lock = new();
@@ -55,7 +62,7 @@ internal sealed class NzxtBridge : INzxtBridge
 
             try
             {
-                byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request));
+                byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request, JsonOptions));
                 _pipe!.Write(payload, 0, payload.Length);
                 _pipe.Flush();
 

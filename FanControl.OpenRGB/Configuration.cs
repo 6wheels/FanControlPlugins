@@ -39,8 +39,10 @@ namespace FanControl.OpenRGB
   {
     public bool Enabled { get; set; } = false;
 
-    // Name of the LiquidCtl bridge named pipe (without the \\.\pipe\ prefix).
-    public string PipeName { get; set; } = "LiquidCtlPipe";
+    // Name of the LiquidCtl bridge's dedicated RGB named pipe (without the
+    // \\.\pipe\ prefix). The fan client holds the primary pipe open, so RGB uses
+    // its own; both feed the same serialized HID queue in the bridge.
+    public string PipeName { get; set; } = "LiquidCtlPipeRgb";
 
     private int _refreshHz = 5;
     // Upper bound on command-sink pushes; the NZXT firmware drops rapid commands,
