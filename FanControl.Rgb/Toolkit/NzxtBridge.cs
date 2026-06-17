@@ -28,6 +28,8 @@ internal sealed class NzxtBridge : INzxtBridge
     private readonly object _lock = new();
     private NamedPipeClientStream? _pipe;
     private bool _disposed;
+    private bool _wasConnected;
+    private bool _loggedConnectFailure;
 
     public NzxtBridge(string pipeName, Action<string, LogLevel> log)
     {
@@ -92,6 +94,10 @@ internal sealed class NzxtBridge : INzxtBridge
             _pipe.Connect(ConnectTimeoutMs);
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 _pipe.ReadMode = PipeTransmissionMode.Message;
+            if (!_wasConnected)
+                _log($"NZXT bridge connected on pipe '{_pipeName}'.", LogLevel.Info);
+            _wasConnected = true;
+            _loggedConnectFailure = false;
             return true;
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException)
@@ -99,6 +105,12 @@ internal sealed class NzxtBridge : INzxtBridge
             // Bridge not up yet (LiquidCtl plugin not loaded, or starting). Retry later.
             _pipe?.Dispose();
             _pipe = null;
+            _wasConnected = false;
+            if (!_loggedConnectFailure)
+            {
+                _log($"NZXT bridge pipe '{_pipeName}' not reachable yet ({ex.Message}); retrying.", LogLevel.Warning);
+                _loggedConnectFailure = true;
+            }
             return false;
         }
     }
