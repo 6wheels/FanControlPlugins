@@ -9,5 +9,8 @@ namespace FanControl.Rgb.Toolkit;
 internal interface INzxtBridge : IDisposable
 {
     bool Connected { get; }
-    void SetLeds(string deviceMatch, string channel, Color[] colors);
+    // Returns true only if the frame was actually written to the bridge. The
+    // renderer relies on this so it never marks a channel as "sent" (and then
+    // stops retrying) when the bridge isn't up yet.
+    bool SetLeds(string deviceMatch, string channel, Color[] colors);
 }

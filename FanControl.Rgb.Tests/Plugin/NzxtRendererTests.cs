@@ -152,15 +152,41 @@ public class NzxtRendererTests
 
         Assert.Empty(bridge.Calls);
     }
+
+    [Fact]
+    public void FailedSend_RetriesUntilAccepted()
+    {
+        var bridge = new FakeNzxtBridge { Accept = false };
+        var renderer = Renderer(bridge);
+        renderer.SetBindings([Binding("Kraken", threshold: 0f, value: 100f)]);
+
+        // Bridge down: every tick force-retries every channel (not primed).
+        renderer.Tick();
+        renderer.Tick();
+        Assert.Equal(4, bridge.Calls.Count); // 2 channels x 2 ticks, all retried
+
+        // Bridge comes up: the pending frame goes through, then primes.
+        bridge.Accept = true;
+        bridge.Calls.Clear();
+        renderer.Tick();
+        Assert.Equal(2, bridge.Calls.Count); // ring + logo delivered once
+        renderer.Tick();
+        Assert.Equal(2, bridge.Calls.Count); // now primed + unchanged -> no resend
+    }
 }
 
 internal sealed class FakeNzxtBridge : INzxtBridge
 {
-    public bool Connected => true;
+    // When false, SetLeds simulates a bridge that isn't up yet (returns false).
+    public bool Accept { get; set; } = true;
+    public bool Connected => Accept;
     public List<(string Device, string Channel, Color[] Colors)> Calls { get; } = [];
 
-    public void SetLeds(string deviceMatch, string channel, Color[] colors)
-        => Calls.Add((deviceMatch, channel, (Color[])colors.Clone()));
+    public bool SetLeds(string deviceMatch, string channel, Color[] colors)
+    {
+        Calls.Add((deviceMatch, channel, (Color[])colors.Clone()));
+        return Accept;
+    }
 
     public void Dispose() { }
 }

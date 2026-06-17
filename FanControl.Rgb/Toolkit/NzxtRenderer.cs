@@ -138,6 +138,12 @@ internal sealed class NzxtRenderer : IDisposable
         Color[] sent = _lastSent[i];
         bool force = !_primed[i];
 
+        // Only record a channel as sent (and prime the device) when the bridge
+        // actually accepted the frame. Otherwise a failed first flush — the bridge
+        // takes a few seconds to come up — would mark everything sent and the
+        // diff would suppress all further frames, leaving the LEDs dark.
+        bool allSent = true;
+
         foreach (NzxtChannelSlice slice in device.Channels)
         {
             if (!force && !SliceChanged(buffer, sent, slice.Offset, slice.Count))
@@ -145,11 +151,14 @@ internal sealed class NzxtRenderer : IDisposable
 
             var colors = new Color[slice.Count];
             Array.Copy(buffer, slice.Offset, colors, 0, slice.Count);
-            _bridge.SetLeds(slice.DeviceMatch, slice.ChannelName, colors);
-            Array.Copy(buffer, slice.Offset, sent, slice.Offset, slice.Count);
+            if (_bridge.SetLeds(slice.DeviceMatch, slice.ChannelName, colors))
+                Array.Copy(buffer, slice.Offset, sent, slice.Offset, slice.Count);
+            else
+                allSent = false;
         }
 
-        _primed[i] = true;
+        if (allSent)
+            _primed[i] = true;
     }
 
     private static bool SliceChanged(Color[] current, Color[] sent, int offset, int count)

@@ -40,7 +40,7 @@ internal sealed class NzxtBridge : INzxtBridge
         get { lock (_lock) return _pipe is { IsConnected: true }; }
     }
 
-    public void SetLeds(string deviceMatch, string channel, Color[] colors)
+    public bool SetLeds(string deviceMatch, string channel, Color[] colors)
     {
         var data = new
         {
@@ -49,16 +49,16 @@ internal sealed class NzxtBridge : INzxtBridge
             Mode = "super-fixed",
             Colors = Array.ConvertAll(colors, c => new[] { c.R, c.G, c.B })
         };
-        Send(new { Command = "set.led", Data = data });
+        return Send(new { Command = "set.led", Data = data });
     }
 
-    private void Send(object request)
+    private bool Send(object request)
     {
-        if (_disposed) return;
+        if (_disposed) return false;
 
         lock (_lock)
         {
-            if (!EnsureConnected()) return;
+            if (!EnsureConnected()) return false;
 
             try
             {
@@ -69,12 +69,14 @@ internal sealed class NzxtBridge : INzxtBridge
                 // Drain the bridge's ack so the next request reads a clean message.
                 byte[] buffer = new byte[4096];
                 _pipe.Read(buffer, 0, buffer.Length);
+                return true;
             }
             catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException or ObjectDisposedException)
             {
                 _log($"NZXT bridge request failed: {ex.Message}", LogLevel.Warning);
                 _pipe?.Dispose();
                 _pipe = null;
+                return false;
             }
         }
     }
