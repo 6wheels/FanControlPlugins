@@ -49,10 +49,15 @@ internal sealed class NzxtBridge : INzxtBridge
             Device = deviceMatch,
             Channel = channel,
             Mode = "super-fixed",
-            Colors = Array.ConvertAll(colors, c => new[] { c.R, c.G, c.B })
+            Colors = EncodeColors(colors)
         };
         return Send(new { Command = "set.led", Data = data });
     }
+
+    // Per-LED [r,g,b]. Must be int[], not byte[]: System.Text.Json serializes
+    // byte[] as a base64 string, which the bridge rejects (expects an array).
+    internal static int[][] EncodeColors(Color[] colors)
+        => Array.ConvertAll(colors, c => new[] { (int)c.R, (int)c.G, (int)c.B });
 
     private bool Send(object request)
     {

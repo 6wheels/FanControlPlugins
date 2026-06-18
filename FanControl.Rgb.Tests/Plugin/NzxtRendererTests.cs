@@ -154,6 +154,15 @@ public class NzxtRendererTests
     }
 
     [Fact]
+    public void EncodeColors_SerializesAsNumericArrays_NotBase64()
+    {
+        int[][] encoded = NzxtBridge.EncodeColors([new Color(19, 6, 0), new Color(0, 255, 0)]);
+        string json = System.Text.Json.JsonSerializer.Serialize(encoded);
+        // byte[] would serialize as base64 strings ("EwYA"); must stay [[r,g,b],...].
+        Assert.Equal("[[19,6,0],[0,255,0]]", json);
+    }
+
+    [Fact]
     public void FailedSend_RetriesUntilAccepted()
     {
         var bridge = new FakeNzxtBridge { Accept = false };
