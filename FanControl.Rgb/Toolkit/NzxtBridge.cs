@@ -64,13 +64,18 @@ internal sealed class NzxtBridge : INzxtBridge
 
             try
             {
-                byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request, JsonOptions));
+                string json = JsonSerializer.Serialize(request, JsonOptions);
+                _log($"NZXT TX -> {_pipeName}: {json}", LogLevel.Debug);
+
+                byte[] payload = Encoding.UTF8.GetBytes(json);
                 _pipe!.Write(payload, 0, payload.Length);
                 _pipe.Flush();
 
-                // Drain the bridge's ack so the next request reads a clean message.
+                // Read the bridge's response so we can see whether it accepted the
+                // frame; also keeps the stream clean for the next request.
                 byte[] buffer = new byte[4096];
-                _pipe.Read(buffer, 0, buffer.Length);
+                int read = _pipe.Read(buffer, 0, buffer.Length);
+                _log($"NZXT RX <- ({read} bytes): {Encoding.UTF8.GetString(buffer, 0, read)}", LogLevel.Debug);
                 return true;
             }
             catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException or ObjectDisposedException)
