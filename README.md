@@ -10,7 +10,7 @@ The build and deployment process is fully automated. Every new release is built 
 
 | Plugin | Description | Build | Coverage |
 | --- | --- | --- | --- |
-| [FanControl.OpenRGB](./FanControl.OpenRGB/README.md) | Maps FanControl sensors to OpenRGB lighting effects (static, gradient, blink, aurora, 2D matrix, startup animations). | [![Build](https://img.shields.io/github/actions/workflow/status/6wheels/FanControlPlugins/release.yml?branch=main&label=build&style=flat-square)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://img.shields.io/codecov/c/github/6wheels/FanControlPlugins?flag=FanControl.OpenRGB&label=cov&style=flat-square)](https://codecov.io/gh/6wheels/FanControlPlugins) |
+| [FanControl.Rgb](./FanControl.Rgb/README.md) | Maps FanControl sensors to RGB lighting effects through two sinks: OpenRGB (most hardware) and NZXT via the LiquidCtl bridge. Effects: static, gradient, blink, breathing, aurora, rainbow, spatial/gauge gradient, progress bar, 2D matrix, startup animations. | [![Build](https://img.shields.io/github/actions/workflow/status/6wheels/FanControlPlugins/release.yml?branch=main&label=build&style=flat-square)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://img.shields.io/codecov/c/github/6wheels/FanControlPlugins?flag=FanControl.Rgb&label=cov&style=flat-square)](https://codecov.io/gh/6wheels/FanControlPlugins) |
 | [FanControl.Mqtt](./FanControl.Mqtt/README.md) | Publishes FanControl sensors to an MQTT broker with Home Assistant auto-discovery. | [![Build](https://img.shields.io/github/actions/workflow/status/6wheels/FanControlPlugins/release.yml?branch=main&label=build&style=flat-square)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://img.shields.io/codecov/c/github/6wheels/FanControlPlugins?flag=FanControl.Mqtt&label=cov&style=flat-square)](https://codecov.io/gh/6wheels/FanControlPlugins) |
 | [FanControl.SystemMetrics](./FanControl.SystemMetrics/README.md) | Exposes Windows performance counters (CPU, GPU, disk) as sensors for activity-driven fan curves. | [![Build](https://img.shields.io/github/actions/workflow/status/6wheels/FanControlPlugins/release.yml?branch=main&label=build&style=flat-square)](https://github.com/6wheels/FanControlPlugins/actions/workflows/release.yml) | [![Coverage](https://img.shields.io/codecov/c/github/6wheels/FanControlPlugins?flag=FanControl.SystemMetrics&label=cov&style=flat-square)](https://codecov.io/gh/6wheels/FanControlPlugins) |
 
@@ -50,7 +50,7 @@ Your tree should look like this:
 ```text
 /lib/
   └── FanControl.Plugins.dll
-/FanControl.OpenRGB/
+/FanControl.Rgb/
 /FanControl.Plugin2/
 Directory.Build.props
 FanControl.Plugins.sln
@@ -65,13 +65,13 @@ Dependencies (like OpenRGB.NET) are automatically bundled into a single output .
 A `Deploy` MSBuild target stops FanControl, copies the built `.dll` to the plugins folder, and restarts FanControl. It requires a UAC elevation prompt (one per run).
 
 ```bash
-dotnet.exe build -t:Deploy FanControl.OpenRGB/FanControl.OpenRGB.csproj
+dotnet.exe build -t:Deploy FanControl.Rgb/FanControl.Rgb.csproj
 ```
 
 The default destination is `C:\Program Files (x86)\FanControl\Plugins`. Override it if your install path differs:
 
 ```bash
-dotnet.exe build -t:Deploy -p:FanControlPluginsDir="C:\your\path\Plugins" FanControl.OpenRGB/FanControl.OpenRGB.csproj
+dotnet.exe build -t:Deploy -p:FanControlPluginsDir="C:\your\path\Plugins" FanControl.Rgb/FanControl.Rgb.csproj
 ```
 
 ### 5. Commit Conventions
@@ -82,7 +82,7 @@ This repo uses [Conventional Commits](https://www.conventionalcommits.org/). The
 ```
 
 * **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
-* **Scope** (optional): usually the plugin, e.g. `feat(openrgb): ...`.
+* **Scope** (optional): usually the plugin, e.g. `feat(rgb): ...`.
 * **Breaking change**: add `!` after the type/scope (e.g. `feat!: ...`) or a `BREAKING CHANGE:` line in the body.
 
 A tracked `commit-msg` hook validates this. Enable it once per clone:
@@ -98,8 +98,8 @@ Versions are **per plugin** and live entirely in git tags — there are no versi
 
 * **Final release** — push a tag shaped `<Plugin>/v<semver>`, which builds and releases only that plugin at that exact version:
   ```bash
-  git tag -a FanControl.OpenRGB/v1.2.0 -m "FanControl.OpenRGB v1.2.0"
-  git push origin FanControl.OpenRGB/v1.2.0
+  git tag -a FanControl.Rgb/v1.2.0 -m "FanControl.Rgb v1.2.0"
+  git push origin FanControl.Rgb/v1.2.0
   ```
   An annotated tag (`-a -m`) is recommended over a lightweight one so the tag records the tagger, date, and a message — the workflow accepts either form.
 * **Nightly** — every push to `main` (or a manual run) builds all plugins into one rolling `nightly` pre-release. Each artifact previews the plugin's **next** version as `<next>-dev.<short-sha>`, where the bump is derived from the Conventional Commits touching that plugin since its last tag:
@@ -122,7 +122,7 @@ Every plugin references the host `FanControl.Plugins` API and bundles its NuGet 
 | --- | --- | --- | --- |
 | [FanControl.Plugins](https://github.com/Rem0o/FanControl.Releases) | all plugins | Proprietary (Rémi Mercier) | **No** — provided by the FanControl host at runtime, never redistributed (`Private=false`) |
 | [Costura.Fody](https://github.com/Fody/Costura) 6.0.0 | all plugins (build only) | MIT | n/a (build-time tool) |
-| [OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET) 3.1.1 | FanControl.OpenRGB | MIT | Yes |
+| [OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET) 3.1.1 | FanControl.Rgb | MIT | Yes |
 | [MQTTnet](https://github.com/dotnet/MQTTnet) 5.1.0.1559 | FanControl.Mqtt | MIT | Yes |
 | [System.Diagnostics.PerformanceCounter](https://github.com/dotnet/runtime) 10.0.8 | FanControl.SystemMetrics | MIT | Yes |
 

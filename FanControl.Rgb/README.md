@@ -50,9 +50,7 @@ Upon the first launch, the plugin creates an `RGBConfig.json` file in the plugin
       "Direction": "Horizontal",
       "Color1Hex": "#00FF66",
       "Color2Hex": "#00FFFF",
-      "Color3Hex": "#9900FF",
-      "Speed": 0.08,
-      "Scale": 0.4
+      "Color3Hex": "#9900FF"
     }
   },
   "Rules": [
@@ -148,7 +146,8 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 - `Gradient`: Requires `ColorMinHex` and `ColorMaxHex`. Colors interpolate between minimum and maximum values based on the current value.
 - `Blink`: Requires `Color1Hex` and `Color2Hex`. `SlowBlinkHz` and `FastBlinkHz` set the blink frequency range (in Hz); when `ModulateByValue` is true, the frequency scales from slow (low value) to fast (high value).
 - `Breathing`: Requires `BaseColorHex`, `PeakColorHex`, `MinSpeed`, and `MaxSpeed`. Creates a smooth pulsating fade whose speed increases with the current value.
-- `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, `Speed`, `Scale`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
+- `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
+- `Rainbow`: Optional `Speed` and `Spread`. Sweeps an HSV hue across the LEDs (1D strip or 2D matrix); `Speed` sets the animation rate, `Spread` how many hue cycles span the device.
 - `SpatialGradient`: Requires `ColorMinHex` and `ColorMaxHex`. Draws a left-to-right gradient across a 1D strip or 2D matrix.
 - `GaugeGradient`: Requires `ColorMinHex` and `ColorMaxHex`. At value `0`, all selected LEDs are `ColorMinHex`. As the value increases, the gradient fills spatially toward `ColorMaxHex`.
 - `ProgressBar`: Requires `FillColorHex` and optional `EmptyColorHex`. Lights LEDs sequentially to represent the current value, with an optional transparent empty state.
