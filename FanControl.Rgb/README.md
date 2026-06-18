@@ -107,7 +107,7 @@ throttled to `RefreshHz` and only when a channel's colours change.
 "Nzxt": {
   "Enabled": true,
   "PipeName": "LiquidCtlPipeRgb",
-  "RefreshHz": 5,
+  "RefreshHz": 15,
   "Targets": [
     {
       "Name": "Kraken X63",

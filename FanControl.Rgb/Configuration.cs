@@ -44,7 +44,7 @@ namespace FanControl.Rgb
     // its own; both feed the same serialized HID queue in the bridge.
     public string PipeName { get; set; } = "LiquidCtlPipeRgb";
 
-    private int _refreshHz = 5;
+    private int _refreshHz = 15;
     // Upper bound on command-sink pushes; the NZXT firmware drops rapid commands,
     // so this stays low. A buffer diff suppresses redundant frames on top of this.
     public int RefreshHz
