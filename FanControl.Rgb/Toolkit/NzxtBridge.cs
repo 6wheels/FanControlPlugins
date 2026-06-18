@@ -85,9 +85,12 @@ internal sealed class NzxtBridge : INzxtBridge
             }
             catch (Exception ex) when (ex is IOException or TimeoutException or InvalidOperationException or ObjectDisposedException)
             {
-                _log($"NZXT bridge request failed: {ex.Message}", LogLevel.Warning);
+                // Transient/self-healing (e.g. the bridge going away on shutdown):
+                // drop the pipe and reconnect on the next frame. Debug, not warning.
+                _log($"NZXT bridge request failed: {ex.Message}", LogLevel.Debug);
                 _pipe?.Dispose();
                 _pipe = null;
+                _wasConnected = false;
                 return false;
             }
         }
