@@ -27,6 +27,7 @@ internal sealed class OpenRgbEngine : IDisposable
     private bool[] _deviceNeedsUpdate = [];
     private int _frameCount;
     private int _retryCount;
+    private string _lastConnectError = string.Empty;
 
     private long _startupStamp; // timestamp the startup animation began
     private long _backoffStamp; // timestamp the current backoff began
@@ -134,7 +135,9 @@ internal sealed class OpenRgbEngine : IDisposable
         {
             // Self-gate the failure into a backed-off Error rather than letting it
             // bubble to the tick guard, which would retry connect every frame.
-            _log($"Connection failed: {ex.Message}", LogLevel.Error);
+            // Suppress per-attempt noise; the error surfaces only when all retries fail.
+            _lastConnectError = ex.Message;
+            _log($"Connection attempt failed: {ex.Message}", LogLevel.Debug);
             DisposeBroker();
             return EnterError();
         }
@@ -180,7 +183,7 @@ internal sealed class OpenRgbEngine : IDisposable
 
         if (_retryCount >= _config.Reconnect.MaxRetries)
         {
-            _log($"Reconnect exhausted after {_retryCount} attempt(s). Engine stopped driving LEDs.", LogLevel.Error);
+            _log($"Reconnect exhausted after {_retryCount} attempt(s). Engine stopped. Last error: {_lastConnectError}", LogLevel.Error);
             return State.Failed;
         }
 

@@ -89,12 +89,11 @@ serialized HID queue.
 **Two setup requirements:**
 1. Run a LiquidCtl bridge build that exposes the RGB pipe (the `set.led` command
    and the dedicated `LiquidCtlPipeRgb` pipe).
-   > **Note:** this RGB endpoint is **not yet in a released LiquidCtl build**. It
-   > is proposed upstream in
-   > [antoine-bouteiller/FanControl.LiquidCtl#178](https://github.com/antoine-bouteiller/FanControl.LiquidCtl/pull/178);
-   > until that ships, use the forked build
-   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink),
-   > then switch to the official release once available.
+   > **Note:** this RGB endpoint is now merged upstream in
+   > [antoine-bouteiller/FanControl.LiquidCtl#178](https://github.com/antoine-bouteiller/FanControl.LiquidCtl/pull/178).
+   > If no official release is out yet, use the forked build
+   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink)
+   > in the meantime.
 2. In OpenRGB, **disable/blacklist the NZXT devices** so OpenRGB.exe never opens
    that HID. liquidctl must be the sole owner.
 
