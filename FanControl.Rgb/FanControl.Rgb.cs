@@ -132,7 +132,7 @@ namespace FanControl.Rgb
       if (level >= _config.LogLevel)
       {
         string prefix = $"[{level.ToString().ToUpper()}]";
-        _logger.Log($"[OpenRGB] {prefix} {message}");
+        _logger.Log($"[RGB] {prefix} {message}");
       }
     }
 
