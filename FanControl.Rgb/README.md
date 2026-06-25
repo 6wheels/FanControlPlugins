@@ -89,10 +89,12 @@ serialized HID queue.
 **Two setup requirements:**
 1. Run a LiquidCtl bridge build that exposes the RGB pipe (the `set.led` command
    and the dedicated `LiquidCtlPipeRgb` pipe).
-   > **Note:** this RGB endpoint is **not yet in upstream LiquidCtl**. Until it is
-   > reviewed and merged by the LiquidCtl developer, a forked build is required:
-   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink).
-   > Once merged upstream, use the official release instead.
+   > **Note:** this RGB endpoint is **not yet in a released LiquidCtl build**. It
+   > is proposed upstream in
+   > [antoine-bouteiller/FanControl.LiquidCtl#178](https://github.com/antoine-bouteiller/FanControl.LiquidCtl/pull/178);
+   > until that ships, use the forked build
+   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink),
+   > then switch to the official release once available.
 2. In OpenRGB, **disable/blacklist the NZXT devices** so OpenRGB.exe never opens
    that HID. liquidctl must be the sole owner.
 
@@ -132,6 +134,13 @@ throttled to `RefreshHz` and only when a channel's colours change.
 NZXT firmware drops rapid commands, animated effects run at the reduced
 `RefreshHz` rate; value-driven effects (gradient, gauge, progress) update on
 change and look smooth.
+
+> **Planned:** NZXT effects are currently software-rendered and streamed per-LED
+> via `super-fixed`, so on-device animation is bounded by `RefreshHz`. A future
+> version will also map effects onto the device's **built-in firmware modes**
+> (breathing, spectrum-wave, pulse, …): a single command hands the animation to
+> the controller, giving smooth motion with no command-rate limit — at the cost
+> of the firmware's fixed mode/speed set.
 
 ### Understanding Rules
 Once the plugin loads the JSON, you will see a new custom sensor card in FanControl for each rule (e.g., "GPU High Temp Warning").
