@@ -17,6 +17,7 @@ internal sealed class OpenRgbEngine : IDisposable
     private readonly OpenRgbConfig _config;
     private readonly Func<OpenRgbConfig, IOpenRgbBroker> _connect;
     private readonly Action<string, LogLevel> _log;
+    private readonly Action<string>? _onFatal;
     private readonly TimeProvider _time;
     private readonly Func<bool> _isSuspended;
 
@@ -45,11 +46,13 @@ internal sealed class OpenRgbEngine : IDisposable
         Func<OpenRgbConfig, IOpenRgbBroker> connect,
         Action<string, LogLevel> log,
         TimeProvider? timeProvider = null,
-        Func<bool>? isSuspended = null)
+        Func<bool>? isSuspended = null,
+        Action<string>? onFatal = null)
     {
         _config = config;
         _connect = connect;
         _log = log;
+        _onFatal = onFatal;
         _time = timeProvider ?? TimeProvider.System;
         // DevToolkit takeover gate. Injectable so tests don't depend on a
         // process-global temp file.
@@ -62,10 +65,15 @@ internal sealed class OpenRgbEngine : IDisposable
 
     public void Start()
     {
+        _log($"OpenRGB frame sink started at {_config.Framerate}Hz ({_config.ServerIp}:{_config.ServerPort}).", LogLevel.Info);
         Begin();
         int interval = 1000 / _config.Framerate;
         _timer = new Timer(_ => Tick(), null, 0, interval);
     }
+
+    // Total connection attempts before giving up: the initial connect plus MaxRetries
+    // reconnects. Used so every attempt log shares one consistent denominator.
+    private int TotalConnectAttempts => _config.Reconnect.MaxRetries + 1;
 
     // Arms the state machine without a timer. Test seam: lets tests drive Tick()
     // deterministically instead of relying on the threadpool timer.
@@ -107,6 +115,7 @@ internal sealed class OpenRgbEngine : IDisposable
 
     private State HandleConnecting()
     {
+        _log($"OpenRGB connecting to {_config.ServerIp}:{_config.ServerPort} (attempt {_retryCount + 1}/{TotalConnectAttempts}).", LogLevel.Info);
         try
         {
             _broker = _connect(_config);
@@ -121,7 +130,7 @@ internal sealed class OpenRgbEngine : IDisposable
                 _buffers[i] = _devices[i].Colors;
 
             _retryCount = 0;
-            _log($"Connected. {_devices.Length} device(s) detected.", LogLevel.Info);
+            _log($"OpenRGB connected: {_devices.Length} device(s) detected at {_config.Framerate}Hz.", LogLevel.Info);
 
             if (_config.Startup?.Effect != null)
             {
@@ -181,14 +190,32 @@ internal sealed class OpenRgbEngine : IDisposable
         if (_time.GetElapsedTime(_backoffStamp).TotalSeconds < _config.Reconnect.DelaySeconds)
             return State.Error; // still backing off
 
-        if (_retryCount >= _config.Reconnect.MaxRetries)
+        int maxRetries = _config.Reconnect.MaxRetries;
+        if (_retryCount >= maxRetries)
         {
-            _log($"Reconnect exhausted after {_retryCount} attempt(s). Engine stopped. Last error: {_lastConnectError}", LogLevel.Error);
+            // All attempts spent. _retryCount + 1 counts the initial connect plus
+            // every retry, i.e. TotalConnectAttempts.
+            string retries = maxRetries == 1 ? "retry" : "retries";
+            string summary =
+                $"OpenRGB connection failed after {TotalConnectAttempts} attempt(s) " +
+                $"(1 initial + {maxRetries} {retries}). Giving up. Last error: {_lastConnectError}";
+            _log(summary, LogLevel.Error);
+            // One-shot user-facing notification (fired exactly once on the terminal
+            // transition; Failed is absorbing so HandleError never runs again). The
+            // host dialog must not be invoked on this timer thread — Dispose() drains
+            // the in-flight tick, so a modal here would deadlock Close(). The plugin's
+            // handler marshals it off-thread.
+            _onFatal?.Invoke(
+                $"RGB: could not connect to OpenRGB after {TotalConnectAttempts} attempt(s). " +
+                $"Ensure OpenRGB is running with its SDK server enabled ({_config.ServerIp}:{_config.ServerPort}). " +
+                $"Last error: {_lastConnectError}");
             return State.Failed;
         }
 
+        // The attempt that just failed was number (_retryCount + 1) of TotalConnectAttempts.
+        _log($"OpenRGB unreachable (attempt {_retryCount + 1}/{TotalConnectAttempts} failed); " +
+            $"retrying in {_config.Reconnect.DelaySeconds:0}s. Last error: {_lastConnectError}", LogLevel.Warning);
         _retryCount++;
-        _log($"Reconnect attempt {_retryCount}/{_config.Reconnect.MaxRetries}.", LogLevel.Warning);
         DisposeBroker();
         return State.Connecting;
     }

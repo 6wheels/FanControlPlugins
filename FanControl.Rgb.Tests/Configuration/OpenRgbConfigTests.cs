@@ -14,7 +14,7 @@ public class OpenRgbConfigTests
         Assert.Equal(6742, config.ServerPort);
         Assert.Equal(30, config.Framerate);
         Assert.Equal(0.1f, config.TransitionSpeed);
-        Assert.Equal(LogLevel.Info, config.LogLevel);
+        Assert.Equal(LogLevel.Warning, config.LogLevel);
         Assert.Null(config.Startup);
         Assert.Empty(config.Rules);
     }

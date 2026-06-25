@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Sockets;
 using FanControl.Plugins;
 using OpenRGB.NET;
 using FanControl.Rgb.Rules;
@@ -64,7 +65,7 @@ namespace FanControl.Rgb
       if (loaded == null) return; // template generated, nothing to drive yet
       _config = loaded;
 
-      _engine = new OpenRgbEngine(_config, _connect, Log, _time, _suspended);
+      _engine = new OpenRgbEngine(_config, _connect, Log, _time, _suspended, ShowFatal);
       _engine.SetBindings(_bindings);
       _engine.Start();
 
@@ -86,9 +87,20 @@ namespace FanControl.Rgb
     // Connection factory handed to the engine; the only place that touches the
     // real OpenRGB SDK, so the engine stays unit-testable behind IOpenRgbBroker.
     // Excluded from coverage: it opens a real socket, untestable without a server.
+    private const int ProbeTimeoutMs = 500;
+
     [ExcludeFromCodeCoverage]
     private static IOpenRgbBroker Connect(OpenRgbConfig config)
     {
+      // Pre-flight reachability probe. OpenRGB.NET's SocketExtensions.Connect starts
+      // socket.ConnectAsync, then Close()s it on timeout when the server is absent;
+      // the aborted connect Task faults with SocketException(995) and is never awaited,
+      // so the GC finalizer raises it as a TaskScheduler.UnobservedTaskException that
+      // FanControl logs. That Task is a library-local var we cannot observe, so the
+      // only fix is to never start it: connect through the SDK only once the port
+      // actually accepts. APM (BeginConnect) avoids creating an observable Task here.
+      EnsureReachable(config.ServerIp, config.ServerPort);
+
       var client = new OpenRgbClient(name: "FanControl", ip: config.ServerIp, port: config.ServerPort, autoConnect: false);
       try
       {
@@ -103,6 +115,30 @@ namespace FanControl.Rgb
         throw;
       }
       return new OpenRgbBroker(client);
+    }
+
+    // Fast TCP reachability check. The connect attempt is fully awaited so it can
+    // never fault unobserved: on timeout the token cancels ConnectAsync, the OCE
+    // propagates *through* the awaited ValueTask, and we catch it. Abandoning a
+    // connect instead (Task.WaitAny+Close, or BeginConnect+Close — which .NET 8
+    // implements over ConnectAsync().AsTask()) is exactly what leaks the
+    // SocketException(995) the host logs; we must observe it, not orphan it.
+    // Throws on timeout/refusal so the engine applies its normal backoff.
+    [ExcludeFromCodeCoverage]
+    private static void EnsureReachable(string ip, int port)
+    {
+      using var probe = new Socket(SocketType.Stream, ProtocolType.Tcp);
+      using var cts = new CancellationTokenSource(ProbeTimeoutMs);
+      try
+      {
+        // .AsTask().GetAwaiter().GetResult() consumes the result synchronously, so
+        // any fault/cancellation is observed here rather than escaping to the finalizer.
+        probe.ConnectAsync(ip, port, cts.Token).AsTask().GetAwaiter().GetResult();
+      }
+      catch (Exception ex) when (ex is SocketException or OperationCanceledException)
+      {
+        throw new SocketException((int)SocketError.TimedOut);
+      }
     }
 
     public void Load(IPluginSensorsContainer container)
@@ -126,6 +162,18 @@ namespace FanControl.Rgb
       _engine?.SetBindings(bindings);
       _nzxtRenderer?.SetBindings(bindings);
     }
+
+    // Surfaces a terminal engine failure to the user via the host dialog. Marshaled
+    // off the engine's timer thread: that thread is drained by Dispose(), so a modal
+    // dialog on it would deadlock Close(). The inner catch keeps the fire-and-forget
+    // Task from ever faulting unobserved.
+    [ExcludeFromCodeCoverage]
+    private void ShowFatal(string message) =>
+      Task.Run(() =>
+      {
+        try { _dialog.ShowMessageDialog(message); }
+        catch { /* host dialog unavailable; the same message is already logged */ }
+      });
 
     private void Log(string message, LogLevel level = LogLevel.Info)
     {
