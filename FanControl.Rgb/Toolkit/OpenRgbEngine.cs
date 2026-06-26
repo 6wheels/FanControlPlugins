@@ -96,7 +96,7 @@ internal sealed class OpenRgbEngine : IDisposable
             // exception here terminates the host). Stay in the current state;
             // handlers own their own recovery/backoff. Do NOT force a reconnect
             // from here — a transient hiccup must not tear down the connection.
-            _log($"Engine tick failed: {ex.Message}", LogLevel.Error);
+            _log($"OpenRGB engine tick failed: {ex.Message}", LogLevel.Error);
         }
         finally
         {
@@ -135,7 +135,7 @@ internal sealed class OpenRgbEngine : IDisposable
             if (_config.Startup?.Effect != null)
             {
                 _startupStamp = _time.GetTimestamp();
-                _log($"Startup animation for {_config.Startup.DurationSeconds}s.", LogLevel.Info);
+                _log($"OpenRGB startup animation for {_config.Startup.DurationSeconds}s.", LogLevel.Info);
                 return State.Startup;
             }
             return State.Running;
@@ -146,7 +146,7 @@ internal sealed class OpenRgbEngine : IDisposable
             // bubble to the tick guard, which would retry connect every frame.
             // Suppress per-attempt noise; the error surfaces only when all retries fail.
             _lastConnectError = ex.Message;
-            _log($"Connection attempt failed: {ex.Message}", LogLevel.Debug);
+            _log($"OpenRGB connection attempt failed: {ex.Message}", LogLevel.Debug);
             DisposeBroker();
             return EnterError();
         }
@@ -176,11 +176,11 @@ internal sealed class OpenRgbEngine : IDisposable
             // frame skipped — keep rendering, never spin the reconnect loop.
             if (_broker == null || !_broker.Connected)
             {
-                _log($"Connection lost: {ex.Message}", LogLevel.Error);
+                _log($"OpenRGB connection lost: {ex.Message}", LogLevel.Error);
                 DisposeBroker();
                 return EnterError();
             }
-            _log($"Render frame failed: {ex.Message}", LogLevel.Error);
+            _log($"OpenRGB render frame failed: {ex.Message}", LogLevel.Error);
             return State.Running;
         }
     }
