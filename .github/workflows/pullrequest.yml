@@ -1,0 +1,135 @@
+name: Pull Request
+
+# Pull-request validation for the monorepo. Builds and tests only the plugins
+# touched by the PR (a change to the solution, shared props, or this workflow
+# forces a full build). Coverage and test results are pushed to Codecov so the
+# bot reports both on the PR.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pullrequest-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Pinned FanControl release used to fetch FanControl.Plugins.dll (the SDK
+  # assembly the plugins compile against). Mirrors release.yml.
+  FANCONTROL_VERSION: ${{ vars.FANCONTROL_VERSION || 'V269' }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.plan.outputs.plugins }}
+      has_builds: ${{ steps.plan.outputs.has_builds }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Detect which plugin dirs changed. A change to the solution, the shared
+      # props, or this workflow forces a full build via the 'global' filter.
+      - name: Detect changed plugins
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            FanControl.Rgb: ['FanControl.Rgb/**', 'FanControl.Rgb.Tests/**']
+            FanControl.Mqtt: ['FanControl.Mqtt/**', 'FanControl.Mqtt.Tests/**']
+            FanControl.SystemMetrics: ['FanControl.SystemMetrics/**', 'FanControl.SystemMetrics.Tests/**']
+            global:
+              - 'FanControlPlugins.sln'
+              - 'Directory.Build.props'
+              - '.github/workflows/pullrequest.yml'
+
+      - name: Plan build
+        id: plan
+        env:
+          FILTER_CHANGES: ${{ steps.filter.outputs.changes }}
+          FILTER_GLOBAL: ${{ steps.filter.outputs.global }}
+        run: |
+          ALL='["FanControl.Rgb","FanControl.Mqtt","FanControl.SystemMetrics"]'
+          if [[ "$FILTER_GLOBAL" == "true" ]]; then
+            PLUGINS="$ALL"
+          else
+            # Matched plugin filters, minus the synthetic 'global' entry.
+            PLUGINS=$(jq -cn --argjson c "${FILTER_CHANGES:-[]}" '$c - ["global"]')
+          fi
+          HAS_BUILDS=true; [[ "$PLUGINS" == "[]" ]] && HAS_BUILDS=false
+          {
+            echo "plugins=${PLUGINS}"
+            echo "has_builds=${HAS_BUILDS}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fetch FanControl.Plugins.dll
+        if: steps.plan.outputs.has_builds == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/Rem0o/FanControl.Releases/releases/tags/${FANCONTROL_VERSION}" \
+            | jq -r '.assets[] | select(.name|test("\\.zip$")) | select(.name|test("net_4_8")|not) | .browser_download_url' \
+            | head -n1)
+          test -n "$URL" || { echo "No matching .zip asset for ${FANCONTROL_VERSION}"; exit 1; }
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o fc.zip
+          mkdir -p lib
+          unzip -oq fc.zip 'FanControl.Plugins.dll' -d lib
+          test -f lib/FanControl.Plugins.dll || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        if: steps.plan.outputs.has_builds == 'true'
+        with:
+          name: fancontrol-sdk
+          path: lib/FanControl.Plugins.dll
+          retention-days: 1
+
+  build:
+    needs: setup
+    if: needs.setup.outputs.has_builds == 'true'
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.setup.outputs.plugins) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore SDK assembly
+        uses: actions/download-artifact@v8
+        with:
+          name: fancontrol-sdk
+          path: lib
+
+      - name: Build ${{ matrix.plugin }}
+        run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release
+
+      - name: Test ${{ matrix.plugin }}
+        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
+        run: >
+          dotnet test ${{ matrix.plugin }}.Tests/${{ matrix.plugin }}.Tests.csproj -c Release
+          --collect:"XPlat Code Coverage" --results-directory coverage
+          --logger "junit;LogFilePath=test-results/${{ matrix.plugin }}.junit.xml"
+
+      - name: Upload coverage to Codecov
+        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/**/coverage.cobertura.xml
+          flags: ${{ matrix.plugin }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != '' }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: test-results/${{ matrix.plugin }}.junit.xml
+          flags: ${{ matrix.plugin }}
+          token: ${{ secrets.CODECOV_TOKEN }}
