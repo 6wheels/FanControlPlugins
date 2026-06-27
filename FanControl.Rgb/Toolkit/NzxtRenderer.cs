@@ -16,6 +16,8 @@ internal sealed class NzxtRenderer : IDisposable
     private readonly INzxtBridge _bridge;
     private readonly Action<string, LogLevel> _log;
     private readonly Func<bool> _isSuspended;
+    private readonly StartupConfig? _startup;
+    private readonly int _startupFrames; // ceil(DurationSeconds * RefreshHz); 0 when no startup effect
 
     private readonly NzxtDevice[] _devices;
     private readonly IRgbDevice[] _renderDevices;
@@ -34,12 +36,15 @@ internal sealed class NzxtRenderer : IDisposable
         float defaultTransitionSpeed,
         INzxtBridge bridge,
         Action<string, LogLevel> log,
+        StartupConfig? startup = null,
         Func<bool>? isSuspended = null)
     {
         _config = config;
         _defaultTransitionSpeed = defaultTransitionSpeed;
         _bridge = bridge;
         _log = log;
+        _startup = startup?.Effect != null ? startup : null;
+        _startupFrames = _startup != null ? (int)Math.Ceiling(_startup.DurationSeconds * config.RefreshHz) : 0;
         _isSuspended = isSuspended ?? (() => File.Exists(LockFile.Path));
 
         _devices = NzxtDeviceFactory.Build(config);
@@ -92,6 +97,17 @@ internal sealed class NzxtRenderer : IDisposable
     {
         Array.Clear(_needsUpdate);
         int frame = _frameCount++;
+
+        // Startup owns the whole frame: apply across all devices and flush every one,
+        // mirroring OpenRgbEngine.RenderStartupFrame. The bridge diff still suppresses
+        // unchanged channels, so the firmware is never flooded.
+        if (frame < _startupFrames)
+        {
+            _startup!.Effect.Apply(_renderDevices, ".*", null, null, 100f, frame, _defaultTransitionSpeed, _buffers);
+            for (int i = 0; i < _devices.Length; i++)
+                FlushDevice(i);
+            return;
+        }
 
         foreach (var binding in _bindings)
         {

@@ -37,8 +37,15 @@ public class NzxtRendererTests
         return new RuleBinding(config, control);
     }
 
-    private static NzxtRenderer Renderer(FakeNzxtBridge bridge, bool suspended = false)
-        => new(KrakenConfig(), defaultTransitionSpeed: 1f, bridge, (_, _) => { }, () => suspended);
+    private static NzxtRenderer Renderer(FakeNzxtBridge bridge, bool suspended = false, StartupConfig? startup = null)
+        => new(KrakenConfig(), defaultTransitionSpeed: 1f, bridge, (_, _) => { }, startup, () => suspended);
+
+    // 0.1s @ 15Hz default RefreshHz => ceil(1.5) = 2 startup frames.
+    private static StartupConfig RedStartup() => new()
+    {
+        DurationSeconds = 0.1,
+        Effect = new StaticEffect { ColorHex = "#FF0000", ModulateByValue = false }
+    };
 
     [Fact]
     public void Factory_BuildsChannelGeometry()
@@ -147,6 +154,58 @@ public class NzxtRendererTests
         var bridge = new FakeNzxtBridge();
         var renderer = Renderer(bridge);
         renderer.SetBindings([Binding("Smart Device", threshold: 0f, value: 100f)]);
+
+        renderer.Tick();
+
+        Assert.Empty(bridge.Calls);
+    }
+
+    [Fact]
+    public void Startup_PushesAllChannels_WithoutBindings()
+    {
+        var bridge = new FakeNzxtBridge();
+        var renderer = Renderer(bridge, startup: RedStartup());
+        // No bindings at all: startup owns the frame regardless of rules.
+
+        renderer.Tick();
+
+        Assert.Equal(2, bridge.Calls.Count); // ring + logo
+        Assert.All(bridge.Calls, c => Assert.All(c.Colors, led =>
+        {
+            Assert.Equal(255, led.R);
+            Assert.Equal(0, led.G);
+            Assert.Equal(0, led.B);
+        }));
+    }
+
+    [Fact]
+    public void Startup_ElapsesThenRuleTakesOver()
+    {
+        var bridge = new FakeNzxtBridge();
+        var renderer = Renderer(bridge, startup: RedStartup());
+        renderer.SetBindings([Binding("Kraken", threshold: 0f, value: 100f)]); // white static
+
+        renderer.Tick(); // frame 0: startup red, primed push of both channels
+        Assert.Equal(2, bridge.Calls.Count);
+        Assert.Equal(255, bridge.Calls[0].Colors[0].R);
+        Assert.Equal(0, bridge.Calls[0].Colors[0].G);
+
+        renderer.Tick(); // frame 1: startup red again, unchanged -> diff suppresses
+        Assert.Equal(2, bridge.Calls.Count);
+
+        renderer.Tick(); // frame 2: startup elapsed, rule white takes over
+        Assert.Equal(4, bridge.Calls.Count);
+        var last = bridge.Calls[^1];
+        Assert.Equal(255, last.Colors[0].R);
+        Assert.Equal(255, last.Colors[0].G);
+        Assert.Equal(255, last.Colors[0].B);
+    }
+
+    [Fact]
+    public void Startup_SuspendGate_NoPush()
+    {
+        var bridge = new FakeNzxtBridge();
+        var renderer = Renderer(bridge, suspended: true, startup: RedStartup());
 
         renderer.Tick();
 

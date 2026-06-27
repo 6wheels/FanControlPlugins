@@ -73,7 +73,7 @@ namespace FanControl.Rgb
       // the single serialized HID queue and never contends with the fan commands.
       if (_config.Nzxt is { Enabled: true } nzxt)
       {
-        _nzxtRenderer = new NzxtRenderer(nzxt, _config.TransitionSpeed, _connectNzxt(nzxt), Log, _suspended);
+        _nzxtRenderer = new NzxtRenderer(nzxt, _config.TransitionSpeed, _connectNzxt(nzxt), Log, _config.Startup, _suspended);
         _nzxtRenderer.SetBindings(_bindings);
         _nzxtRenderer.Start();
       }
