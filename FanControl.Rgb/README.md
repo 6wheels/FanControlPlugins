@@ -87,13 +87,13 @@ contention causes liquidctl timeouts and stalled fans. So NZXT RGB is driven
 serialized HID queue.
 
 **Two setup requirements:**
-1. Run a LiquidCtl bridge build that exposes the RGB pipe (the `set.led` command
-   and the dedicated `LiquidCtlPipeRgb` pipe).
-   > **Note:** this RGB endpoint is now merged upstream in
-   > [antoine-bouteiller/FanControl.LiquidCtl#178](https://github.com/antoine-bouteiller/FanControl.LiquidCtl/pull/178).
-   > If no official release is out yet, use the forked build
-   > [`6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`](https://github.com/6wheels/FanControl.LiquidCtl/tree/feat/rgb-command-sink)
-   > in the meantime.
+1. Run a LiquidCtl bridge that exposes the RGB pipe (the `set.led` command and
+   the dedicated `LiquidCtlPipeRgb` pipe). This ships upstream in
+   [antoine-bouteiller/FanControl.LiquidCtl](https://github.com/antoine-bouteiller/FanControl.LiquidCtl)
+   **≥ v2.5.0** — no fork required.
+   > Added by [#178](https://github.com/antoine-bouteiller/FanControl.LiquidCtl/pull/178).
+   > The bridge applies per-LED colour frames (liquidctl `super-fixed`); it does
+   > not trigger the firmware's built-in effect modes.
 2. In OpenRGB, **disable/blacklist the NZXT devices** so OpenRGB.exe never opens
    that HID. liquidctl must be the sole owner.
 
@@ -135,8 +135,9 @@ NZXT firmware drops rapid commands, animated effects run at the reduced
 change and look smooth.
 
 > **Planned:** NZXT effects are currently software-rendered and streamed per-LED
-> via `super-fixed`, so on-device animation is bounded by `RefreshHz`. A future
-> version will also map effects onto the device's **built-in firmware modes**
+> via `super-fixed`, so on-device animation is bounded by `RefreshHz` (the
+> upstream bridge only applies colour frames, no firmware effect trigger). A
+> future version will also map effects onto the device's **built-in firmware modes**
 > (breathing, spectrum-wave, pulse, …): a single command hands the animation to
 > the controller, giving smooth motion with no command-rate limit — at the cost
 > of the firmware's fixed mode/speed set.

@@ -14,8 +14,9 @@ devices.
   (`set.led`), so it shares the single serialized HID queue with the fan commands.
   `NzxtBridge` is a pure client — it must NEVER spawn or kill the bridge process
   (the LiquidCtl plugin owns that lifecycle).
-- Requires a forked LiquidCtl build exposing the RGB pipe, until merged upstream:
-  `6wheels/FanControl.LiquidCtl@feat/rgb-command-sink`.
+- Requires a LiquidCtl build exposing the RGB pipe. Shipped upstream in
+  `antoine-bouteiller/FanControl.LiquidCtl` >= v2.5.0 (no fork needed). The bridge
+  applies per-LED colour frames only (no firmware effect trigger).
 - OpenRGB.exe must have the NZXT devices disabled/blacklisted so liquidctl is the
   sole owner of that HID — otherwise the USB contention returns.
 
