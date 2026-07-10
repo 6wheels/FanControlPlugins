@@ -1,7 +1,7 @@
 name: Release
 
 # Per-plugin releases for the monorepo.
-#   Final   -> push a tag  <Plugin>/v<semver>  e.g. FanControl.OpenRGB/v1.2.0
+#   Final   -> push a tag  <Plugin>/v<semver>  e.g. FanControl.Rgb/v1.2.0
 #              Builds & releases ONLY that plugin; version comes from the tag.
 #   Nightly -> push to main / run manually. Builds ALL plugins into one
 #              rolling 'nightly' prerelease; each zip is versioned
@@ -19,11 +19,8 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Pinned FanControl release used to fetch FanControl.Plugins.dll (the SDK
-  # assembly the plugins compile against). Override in repo Settings ->
-  # Secrets and variables -> Actions -> Variables: FANCONTROL_VERSION.
-  FANCONTROL_VERSION: ${{ vars.FANCONTROL_VERSION || 'V269' }}
+# The FanControl SDK version (vars.FANCONTROL_VERSION, default V269) is passed
+# through to the reusable build workflow, which fetches FanControl.Plugins.dll.
 
 jobs:
   setup:
@@ -49,12 +46,14 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            FanControl.OpenRGB: ['FanControl.OpenRGB/**']
+            FanControl.Rgb: ['FanControl.Rgb/**']
             FanControl.Mqtt: ['FanControl.Mqtt/**']
             FanControl.SystemMetrics: ['FanControl.SystemMetrics/**']
             global:
               - 'FanControlPlugins.sln'
+              - 'Directory.Build.props'
               - '.github/workflows/release.yml'
+              - '.github/workflows/build.yml'
 
       - name: Plan release
         id: plan
@@ -62,10 +61,10 @@ jobs:
           FILTER_CHANGES: ${{ steps.filter.outputs.changes }}
           FILTER_GLOBAL: ${{ steps.filter.outputs.global }}
         run: |
-          ALL='["FanControl.OpenRGB","FanControl.Mqtt","FanControl.SystemMetrics"]'
+          ALL='["FanControl.Rgb","FanControl.Mqtt","FanControl.SystemMetrics"]'
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"        # FanControl.OpenRGB/v1.2.0
-            PLUGIN="${TAG%/v*}"                   # FanControl.OpenRGB
+            TAG="${GITHUB_REF#refs/tags/}"        # FanControl.Rgb/v1.2.0
+            PLUGIN="${TAG%/v*}"                   # FanControl.Rgb
             VERSION="${TAG##*/v}"                 # 1.2.0
             {
               echo "mode=final"
@@ -96,108 +95,18 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Fetch FanControl.Plugins.dll
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          URL=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/Rem0o/FanControl.Releases/releases/tags/${FANCONTROL_VERSION}" \
-            | jq -r '.assets[] | select(.name|test("\\.zip$")) | select(.name|test("net_4_8")|not) | .browser_download_url' \
-            | head -n1)
-          test -n "$URL" || { echo "No matching .zip asset for ${FANCONTROL_VERSION}"; exit 1; }
-          echo "Downloading $URL"
-          curl -fsSL "$URL" -o fc.zip
-          mkdir -p lib
-          # Extract only the SDK dll (root entry). Avoids unzip's non-zero
-          # exit on the backslash-path warning emitted for other entries.
-          unzip -oq fc.zip 'FanControl.Plugins.dll' -d lib
-          test -f lib/FanControl.Plugins.dll || { echo "FanControl.Plugins.dll not found in asset"; exit 1; }
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: fancontrol-sdk
-          path: lib/FanControl.Plugins.dll
-          retention-days: 1
-
+  # Reuse the shared build matrix. Final tags pass the explicit tag version;
+  # nightly passes empty so the reusable workflow resolves the next dev version.
   build:
     needs: setup
     if: needs.setup.outputs.has_builds == 'true'
-    runs-on: windows-2025
-    strategy:
-      fail-fast: false
-      matrix:
-        plugin: ${{ fromJSON(needs.setup.outputs.plugins) }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0  # tags needed to derive the nightly version
-
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore SDK assembly
-        uses: actions/download-artifact@v8
-        with:
-          name: fancontrol-sdk
-          path: lib
-
-      - name: Resolve version
-        id: v
-        shell: bash
-        run: |
-          set -euo pipefail
-          P="${{ matrix.plugin }}"
-          if [[ "${{ needs.setup.outputs.mode }}" == "final" ]]; then
-            echo "version=${{ needs.setup.outputs.version }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Nightly: preview the NEXT version. Bump level is derived from the
-          # Conventional Commit subjects touching this plugin since its last tag.
-          SHA=$(git rev-parse --short HEAD)
-          LASTTAG=$(git tag -l "${P}/v*" --sort=-v:refname | head -n1 || true)
-          BASE="${LASTTAG##*/v}"; BASE="${BASE:-0.0.0}"
-          IFS=. read -r MA MI PA <<< "$BASE"
-          MA="${MA:-0}"; MI="${MI:-0}"; PA="${PA:-0}"
-          RANGE=""; [ -n "$LASTTAG" ] && RANGE="${LASTTAG}..HEAD"
-          LOG=$(git log $RANGE --pretty='%s%n%b' -- "$P")
-          if grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE' <<< "$LOG"; then
-            MA=$((MA+1)); MI=0; PA=0
-          elif grep -qE '^feat(\([^)]*\))?:' <<< "$LOG"; then
-            MI=$((MI+1)); PA=0
-          else
-            PA=$((PA+1))
-          fi
-          echo "version=${MA}.${MI}.${PA}-dev.${SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build ${{ matrix.plugin }}
-        run: dotnet build ${{ matrix.plugin }}/${{ matrix.plugin }}.csproj -c Release -p:Version=${{ steps.v.outputs.version }}
-
-      - name: Test ${{ matrix.plugin }}
-        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
-        run: dotnet test ${{ matrix.plugin }}.Tests/${{ matrix.plugin }}.Tests.csproj -c Release --collect:"XPlat Code Coverage" --results-directory coverage
-
-      - name: Upload coverage
-        if: hashFiles(format('{0}.Tests/{0}.Tests.csproj', matrix.plugin)) != ''
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage/**/coverage.cobertura.xml
-          flags: ${{ matrix.plugin }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Package
-        shell: pwsh
-        run: |
-          $dll = "${{ matrix.plugin }}/bin/Release/net8.0-windows/${{ matrix.plugin }}.dll"
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path $dll -DestinationPath "dist/${{ matrix.plugin }}-${{ steps.v.outputs.version }}.zip" -Force
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.plugin }}
-          path: dist/*.zip
-          retention-days: 1
+    uses: ./.github/workflows/build.yml
+    with:
+      plugins: ${{ needs.setup.outputs.plugins }}
+      version: ${{ needs.setup.outputs.mode == 'final' && needs.setup.outputs.version || '' }}
+      fancontrol_version: ${{ vars.FANCONTROL_VERSION || 'V269' }}
+      package: true
+    secrets: inherit
 
   release:
     needs: [setup, build]
@@ -223,10 +132,13 @@ jobs:
           EXCLUDE='^- (initial commit|bump(ed|ing)?( version)?|version bump|release( [0-9v])|prepare release|updated? changelog|merge |(chore|ci|build|docs|style)(\(.*\))?:)'
           changelog_for() {  # $1 = plugin dir, $2 = current tag (final) or empty (nightly)
             local p="$1" cur="${2:-}"
-            local end="${cur:-HEAD}" prev range
+            local end="${cur:-HEAD}" prev range old=""
+            # Transition shim: include the pre-rename directory so the first
+            # FanControl.Rgb release lists its history across the rename.
+            [ "$p" = "FanControl.Rgb" ] && old="FanControl.OpenRGB"
             prev=$(git tag -l "${p}/v*" --sort=-v:refname | grep -v "^${cur}$" | head -n1 || true)
             if [ -n "$prev" ]; then range="${prev}..${end}"; else range="${end}"; fi
-            git log $range --no-merges --pretty='- %s (%h)' -- "$p" | grep -viE "$EXCLUDE" || true
+            git log $range --no-merges --pretty='- %s (%h)' -- "$p" $old | grep -viE "$EXCLUDE" || true
           }
           {
             if [[ "${{ needs.setup.outputs.mode }}" == "final" ]]; then
@@ -237,7 +149,7 @@ jobs:
             else
               echo "## Nightly build"
               echo
-              for p in FanControl.OpenRGB FanControl.Mqtt FanControl.SystemMetrics; do
+              for p in FanControl.Rgb FanControl.Mqtt FanControl.SystemMetrics; do
                 LOG=$(changelog_for "$p")
                 if [ -n "$LOG" ]; then printf '### %s\n%s\n\n' "$p" "$LOG"; fi
               done

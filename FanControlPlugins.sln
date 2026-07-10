@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.OpenRGB", "FanControl.OpenRGB\FanControl.OpenRGB.csproj", "{DC19229A-A08B-4A4A-8106-4BD4BB8FA3C1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.Rgb", "FanControl.Rgb\FanControl.Rgb.csproj", "{DC19229A-A08B-4A4A-8106-4BD4BB8FA3C1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.SystemMetrics", "FanControl.SystemMetrics\FanControl.SystemMetrics.csproj", "{129B91D9-D947-40E3-BA58-60EB48F1A4C1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.Mqtt", "FanControl.Mqtt\FanControl.Mqtt.csproj", "{971EB256-EE4F-45F3-8497-349E0AFEC1F0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.OpenRGB.Tests", "FanControl.OpenRGB.Tests\FanControl.OpenRGB.Tests.csproj", "{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.Rgb.Tests", "FanControl.Rgb.Tests\FanControl.Rgb.Tests.csproj", "{B3B8A731-BF98-4FE8-8737-2735D9C7BB41}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.SystemMetrics.Tests", "FanControl.SystemMetrics.Tests\FanControl.SystemMetrics.Tests.csproj", "{028799AA-D3BD-4454-8F71-60904CCE69A7}"
 EndProject

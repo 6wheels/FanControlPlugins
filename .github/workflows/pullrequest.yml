@@ -1,0 +1,67 @@
+name: Pull Request
+
+# Pull-request validation for the monorepo. Builds and tests only the plugins
+# touched by the PR (a change to the solution, shared props, or a workflow
+# forces a full build) via the reusable Build workflow. Coverage and test
+# results land on Codecov so the bot reports both on the PR.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pullrequest-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.plan.outputs.plugins }}
+      has_builds: ${{ steps.plan.outputs.has_builds }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Detect changed plugins
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            FanControl.Rgb: ['FanControl.Rgb/**', 'FanControl.Rgb.Tests/**']
+            FanControl.Mqtt: ['FanControl.Mqtt/**', 'FanControl.Mqtt.Tests/**']
+            FanControl.SystemMetrics: ['FanControl.SystemMetrics/**', 'FanControl.SystemMetrics.Tests/**']
+            global:
+              - 'FanControlPlugins.sln'
+              - 'Directory.Build.props'
+              - '.github/workflows/pullrequest.yml'
+              - '.github/workflows/build.yml'
+
+      - name: Plan build
+        id: plan
+        env:
+          FILTER_CHANGES: ${{ steps.filter.outputs.changes }}
+          FILTER_GLOBAL: ${{ steps.filter.outputs.global }}
+        run: |
+          ALL='["FanControl.Rgb","FanControl.Mqtt","FanControl.SystemMetrics"]'
+          if [[ "$FILTER_GLOBAL" == "true" ]]; then
+            PLUGINS="$ALL"
+          else
+            # Matched plugin filters, minus the synthetic 'global' entry.
+            PLUGINS=$(jq -cn --argjson c "${FILTER_CHANGES:-[]}" '$c - ["global"]')
+          fi
+          HAS_BUILDS=true; [[ "$PLUGINS" == "[]" ]] && HAS_BUILDS=false
+          {
+            echo "plugins=${PLUGINS}"
+            echo "has_builds=${HAS_BUILDS}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: setup
+    if: needs.setup.outputs.has_builds == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      plugins: ${{ needs.setup.outputs.plugins }}
+      fancontrol_version: ${{ vars.FANCONTROL_VERSION || 'V269' }}
+    secrets: inherit

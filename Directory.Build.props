@@ -30,5 +30,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <!-- JUnit XML output consumed by Codecov Test Analytics on PRs. -->
+    <PackageReference Include="JunitXml.TestLogger" Version="8.0.0" />
   </ItemGroup>
 </Project>
