@@ -7,12 +7,18 @@ namespace FanControl.Rgb.Effects
 {
   public class RainbowEffect : BaseRgbEffect
   {
-    public float Speed { get; set; } = 1.0f;
-    public float Spread { get; set; } = 1.0f;
+    public float Speed { get; set; } = 1.0f;      // relative speed, 0.0-10.0 (1.0 ≈ one rainbow every 4s)
+    public float Spread { get; set; } = 1.0f;     // degrees of hue shift per LED, 0.0-360.0
+    public float Saturation { get; set; } = 1.0f; // HSV saturation, 0.0-1.0
+    public float StartHue { get; set; } = 0.0f;   // base hue offset in degrees, 0.0-360.0
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
       float brightness = ModulateByValue ? Math.Clamp(value / 100f, 0f, 1f) : 1f;
+      // Convert frame index to seconds so Speed is cycles/sec regardless of framerate.
+      float seconds = framerate > 0 ? frameCount / (float)framerate : 0f;
+      float phase = seconds * Speed * ReferenceCyclesPerSecond * 360f + StartHue;
+      float fade = NormalizeFade(transitionSpeed, framerate);
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)
@@ -33,9 +39,9 @@ namespace FanControl.Rgb.Effects
                   string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
-                    float hue = ((frameCount * Speed + (int)ledIndex * Spread) % 360f + 360f) % 360f;
-                    Color target = HsvToRgb(hue, 1f, brightness);
-                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], target, transitionSpeed);
+                    float hue = ((phase + (int)ledIndex * Spread) % 360f + 360f) % 360f;
+                    Color target = HsvToRgb(hue, Saturation, brightness);
+                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], target, fade);
                   }
                 }
               }
@@ -48,34 +54,15 @@ namespace FanControl.Rgb.Effects
               string ledName = device.Leds[ledOffset + l].Name;
               if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
               {
-                float hue = ((frameCount * Speed + l * Spread) % 360f + 360f) % 360f;
-                Color target = HsvToRgb(hue, 1f, brightness);
-                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], target, transitionSpeed);
+                float hue = ((phase + l * Spread) % 360f + 360f) % 360f;
+                Color target = HsvToRgb(hue, Saturation, brightness);
+                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], target, fade);
               }
             }
           }
         }
         ledOffset += (int)zone.LedCount;
       }
-    }
-
-    private static Color HsvToRgb(float h, float s, float v)
-    {
-      float sector = h / 60f;
-      int i = (int)Math.Floor(sector) % 6;
-      float f = sector - (float)Math.Floor(sector);
-      float p = v * (1f - s);
-      float q = v * (1f - f * s);
-      float t = v * (1f - (1f - f) * s);
-      return i switch
-      {
-        0 => new Color((byte)(v * 255), (byte)(t * 255), (byte)(p * 255)),
-        1 => new Color((byte)(q * 255), (byte)(v * 255), (byte)(p * 255)),
-        2 => new Color((byte)(p * 255), (byte)(v * 255), (byte)(t * 255)),
-        3 => new Color((byte)(p * 255), (byte)(q * 255), (byte)(v * 255)),
-        4 => new Color((byte)(t * 255), (byte)(p * 255), (byte)(v * 255)),
-        _ => new Color((byte)(v * 255), (byte)(p * 255), (byte)(q * 255)),
-      };
     }
   }
 }

@@ -8,15 +8,20 @@ namespace FanControl.Rgb.Effects
 {
   public class SpatialGradientEffect : BaseRgbEffect
   {
+    // 2-stop fallback used when ColorStops is empty.
     public string ColorMinHex { get; set; } = "#00FF00";
     public string ColorMaxHex { get; set; } = "#0000FF";
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    // Optional multi-stop gradient. When non-empty it overrides ColorMinHex/ColorMaxHex.
+    // Stop positions are 0.0-1.0 mapped across the LEDs of each zone.
+    public List<GradientStop> ColorStops { get; set; } = new();
+
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
-      Color cMin = ParseHex(ColorMinHex);
-      Color cMax = ParseHex(ColorMaxHex);
+      var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
       float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
+      float fade = NormalizeFade(transitionSpeed, framerate);
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)
@@ -41,14 +46,14 @@ namespace FanControl.Rgb.Effects
                   {
                     float ratio = width > 1 ? (float)x / (width - 1) : 0f;
 
-                    Color gradColor = Interpolate(cMin, cMax, ratio);
+                    Color gradColor = SampleGradient(stops, ratio);
                     Color targetColor = new(
                         (byte)(gradColor.R * intensity),
                         (byte)(gradColor.G * intensity),
                         (byte)(gradColor.B * intensity)
                     );
 
-                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, transitionSpeed);
+                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, fade);
                   }
                 }
               }
@@ -64,28 +69,20 @@ namespace FanControl.Rgb.Effects
               {
                 float ratio = zone.LedCount > 1 ? (float)l / (zone.LedCount - 1) : 0f;
 
-                Color gradColor = Interpolate(cMin, cMax, ratio);
+                Color gradColor = SampleGradient(stops, ratio);
                 Color targetColor = new(
                     (byte)(gradColor.R * intensity),
                     (byte)(gradColor.G * intensity),
                     (byte)(gradColor.B * intensity)
                 );
 
-                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, transitionSpeed);
+                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, fade);
               }
             }
           }
         }
         ledOffset += (int)zone.LedCount;
       }
-    }
-
-    private static Color Interpolate(Color c1, Color c2, float ratio)
-    {
-      byte r = (byte)(c1.R + (c2.R - c1.R) * ratio);
-      byte g = (byte)(c1.G + (c2.G - c1.G) * ratio);
-      byte b = (byte)(c1.B + (c2.B - c1.B) * ratio);
-      return new Color(r, g, b);
     }
   }
 }

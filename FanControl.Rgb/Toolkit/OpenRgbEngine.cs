@@ -234,7 +234,7 @@ internal sealed class OpenRgbEngine : IDisposable
     // Startup owns the whole frame: apply across all devices and push every one.
     internal static void RenderStartupFrame(in RenderContext ctx, int frameCount)
     {
-        ctx.Config.Startup!.Effect.Apply(ctx.Devices, ".*", null, null, 100f, frameCount, ctx.Config.TransitionSpeed, ctx.Buffers);
+        ctx.Config.Startup!.Effect.Apply(ctx.Devices, ".*", null, null, 100f, frameCount, ctx.Config.Framerate, ctx.Config.TransitionSpeed, ctx.Buffers);
         for (int i = 0; i < ctx.Devices.Length; i++)
             ctx.Broker.UpdateLeds(i, ctx.Buffers[i]);
     }
@@ -264,6 +264,7 @@ internal sealed class OpenRgbEngine : IDisposable
                 binding.Config.LedRegex,
                 valueToPass,
                 frameCount,
+                ctx.Config.Framerate,
                 speedToUse,
                 ctx.Buffers
             );

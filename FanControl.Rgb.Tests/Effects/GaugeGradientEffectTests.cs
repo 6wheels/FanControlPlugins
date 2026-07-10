@@ -14,7 +14,7 @@ public class GaugeGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
-        effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 100f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0xFF, c.R));
     }
 
@@ -25,7 +25,7 @@ public class GaugeGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000", ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0xFF, c.R));
     }
 
@@ -36,7 +36,7 @@ public class GaugeGradientEffectTests
         var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2);
         var buffer = new Color[8];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
-        effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 100f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0xFF, c.R));
     }
 
@@ -49,7 +49,7 @@ public class GaugeGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new GaugeGradientEffect { ColorMinHex = "#000000", ColorMaxHex = "#FF0000" };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.True(buffer[0].R > 0, "LED 0 should glow (boundary effect)");
         Assert.True(buffer[0].R < 0xFF, "LED 0 should not be at full brightness");
     }

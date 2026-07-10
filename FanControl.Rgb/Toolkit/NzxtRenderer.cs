@@ -17,7 +17,7 @@ internal sealed class NzxtRenderer : IDisposable
     private readonly Action<string, LogLevel> _log;
     private readonly Func<bool> _isSuspended;
     private readonly StartupConfig? _startup;
-    private readonly int _startupFrames; // ceil(DurationSeconds * RefreshHz); 0 when no startup effect
+    private readonly TimeProvider _time;
 
     private readonly NzxtDevice[] _devices;
     private readonly IRgbDevice[] _renderDevices;
@@ -29,7 +29,8 @@ internal sealed class NzxtRenderer : IDisposable
     private volatile IReadOnlyList<RuleBinding> _bindings = [];
     private Timer? _timer;
     private volatile bool _isTicking;
-    private int _frameCount;
+    private long _startStamp; // wall-clock timestamp of the first rendered tick
+    private bool _started;
 
     public NzxtRenderer(
         NzxtConfig config,
@@ -37,14 +38,15 @@ internal sealed class NzxtRenderer : IDisposable
         INzxtBridge bridge,
         Action<string, LogLevel> log,
         StartupConfig? startup = null,
-        Func<bool>? isSuspended = null)
+        Func<bool>? isSuspended = null,
+        TimeProvider? timeProvider = null)
     {
         _config = config;
         _defaultTransitionSpeed = defaultTransitionSpeed;
         _bridge = bridge;
         _log = log;
         _startup = startup?.Effect != null ? startup : null;
-        _startupFrames = _startup != null ? (int)Math.Ceiling(_startup.DurationSeconds * config.RefreshHz) : 0;
+        _time = timeProvider ?? TimeProvider.System;
         _isSuspended = isSuspended ?? (() => File.Exists(LockFile.Path));
 
         _devices = NzxtDeviceFactory.Build(config);
@@ -96,14 +98,25 @@ internal sealed class NzxtRenderer : IDisposable
     internal void RenderAndFlush()
     {
         Array.Clear(_needsUpdate);
-        int frame = _frameCount++;
+
+        // Anchor timing to the wall clock, not the tick count: NZXT ticks fire below the
+        // nominal RefreshHz (slow pipe round-trips, reentrancy skips), so a frame counter
+        // would drift — animations lag and startup overruns. Deriving the frame from real
+        // elapsed time keeps effect speed and startup duration matched to the OpenRGB sink.
+        if (!_started)
+        {
+            _startStamp = _time.GetTimestamp();
+            _started = true;
+        }
+        double elapsedSeconds = _time.GetElapsedTime(_startStamp).TotalSeconds;
+        int frame = (int)Math.Round(elapsedSeconds * _config.RefreshHz);
 
         // Startup owns the whole frame: apply across all devices and flush every one,
         // mirroring OpenRgbEngine.RenderStartupFrame. The bridge diff still suppresses
         // unchanged channels, so the firmware is never flooded.
-        if (frame < _startupFrames)
+        if (_startup != null && elapsedSeconds < _startup.DurationSeconds)
         {
-            _startup!.Effect.Apply(_renderDevices, ".*", null, null, 100f, frame, _defaultTransitionSpeed, _buffers);
+            _startup.Effect.Apply(_renderDevices, ".*", null, null, 100f, frame, _config.RefreshHz, _defaultTransitionSpeed, _buffers);
             for (int i = 0; i < _devices.Length; i++)
                 FlushDevice(i);
             return;
@@ -128,6 +141,7 @@ internal sealed class NzxtRenderer : IDisposable
                 binding.Config.LedRegex,
                 valueToPass,
                 frame,
+                _config.RefreshHz,
                 speed,
                 _buffers);
 

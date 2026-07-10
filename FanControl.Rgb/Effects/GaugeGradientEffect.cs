@@ -9,15 +9,20 @@ namespace FanControl.Rgb.Effects
 {
   public class GaugeGradientEffect : BaseRgbEffect
   {
+    // 2-stop fallback used when ColorStops is empty.
     public string ColorMinHex { get; set; } = "#00FF00";
     public string ColorMaxHex { get; set; } = "#FF0000";
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    // Optional multi-stop gradient. When non-empty it overrides ColorMinHex/ColorMaxHex.
+    // Stop positions are 0.0-1.0; each LED's fill weight selects the color.
+    public List<GradientStop> ColorStops { get; set; } = new();
+
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
-      Color baseMin = ParseHex(ColorMinHex);
-      Color baseMax = ParseHex(ColorMaxHex);
+      var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
       float valueRatio = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
+      float fade = NormalizeFade(transitionSpeed, framerate);
       int ledOffset = 0;
 
       foreach (var zone in device.Zones)
@@ -83,8 +88,8 @@ namespace FanControl.Rgb.Effects
               }
 
               int ledIndex = targetLeds[i];
-              Color targetColor = LerpColor(baseMin, baseMax, weight);
-              buffer[ledIndex] = LerpColor(buffer[ledIndex], targetColor, transitionSpeed);
+              Color targetColor = SampleGradient(stops, weight);
+              buffer[ledIndex] = LerpColor(buffer[ledIndex], targetColor, fade);
             }
           }
         }

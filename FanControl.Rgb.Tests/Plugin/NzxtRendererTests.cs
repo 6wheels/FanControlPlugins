@@ -37,10 +37,10 @@ public class NzxtRendererTests
         return new RuleBinding(config, control);
     }
 
-    private static NzxtRenderer Renderer(FakeNzxtBridge bridge, bool suspended = false, StartupConfig? startup = null)
-        => new(KrakenConfig(), defaultTransitionSpeed: 1f, bridge, (_, _) => { }, startup, () => suspended);
+    private static NzxtRenderer Renderer(FakeNzxtBridge bridge, bool suspended = false, StartupConfig? startup = null, FakeTimeProvider? time = null)
+        => new(KrakenConfig(), defaultTransitionSpeed: 1f, bridge, (_, _) => { }, startup, () => suspended, time);
 
-    // 0.1s @ 15Hz default RefreshHz => ceil(1.5) = 2 startup frames.
+    // Startup is wall-clock gated: it lasts DurationSeconds regardless of tick cadence.
     private static StartupConfig RedStartup() => new()
     {
         DurationSeconds = 0.1,
@@ -182,18 +182,21 @@ public class NzxtRendererTests
     public void Startup_ElapsesThenRuleTakesOver()
     {
         var bridge = new FakeNzxtBridge();
-        var renderer = Renderer(bridge, startup: RedStartup());
+        var time = new FakeTimeProvider();
+        var renderer = Renderer(bridge, startup: RedStartup(), time: time); // 0.1s startup
         renderer.SetBindings([Binding("Kraken", threshold: 0f, value: 100f)]); // white static
 
-        renderer.Tick(); // frame 0: startup red, primed push of both channels
+        renderer.Tick(); // t=0.00s: startup red, primed push of both channels
         Assert.Equal(2, bridge.Calls.Count);
         Assert.Equal(255, bridge.Calls[0].Colors[0].R);
         Assert.Equal(0, bridge.Calls[0].Colors[0].G);
 
-        renderer.Tick(); // frame 1: startup red again, unchanged -> diff suppresses
+        time.Advance(TimeSpan.FromSeconds(0.05));
+        renderer.Tick(); // t=0.05s: still startup red, unchanged -> diff suppresses
         Assert.Equal(2, bridge.Calls.Count);
 
-        renderer.Tick(); // frame 2: startup elapsed, rule white takes over
+        time.Advance(TimeSpan.FromSeconds(0.06));
+        renderer.Tick(); // t=0.11s: startup elapsed, rule white takes over
         Assert.Equal(4, bridge.Calls.Count);
         var last = bridge.Calls[^1];
         Assert.Equal(255, last.Colors[0].R);

@@ -16,7 +16,7 @@ public class ProgressBarEffectTests
         var buffer = new Color[4];
         buffer[0] = new Color(0x11, 0x11, 0x11);
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Equal(0x11, buffer[0].R);
     }
 
@@ -27,7 +27,7 @@ public class ProgressBarEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
-        effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 100f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0xFF, c.R));
     }
 
@@ -38,7 +38,7 @@ public class ProgressBarEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
-        effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 50f, 0, 30, 1f, [buffer]);
         Assert.Equal(0xFF, buffer[0].R);
         Assert.Equal(0xFF, buffer[1].R);
         Assert.Equal(0x00, buffer[2].R);
@@ -52,7 +52,7 @@ public class ProgressBarEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "#0000FF" };
-        effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 50f, 0, 30, 1f, [buffer]);
         Assert.Equal(0xFF, buffer[0].R); // filled
         Assert.Equal(0xFF, buffer[1].R); // filled
         Assert.Equal(0xFF, buffer[2].B); // unfilled → empty color
@@ -66,8 +66,56 @@ public class ProgressBarEffectTests
         var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2); // 8 LEDs total
         var buffer = new Color[8];
         var effect = new ProgressBarEffect { FillColorHex = "#FF0000", EmptyColorHex = "Transparent" };
-        effect.Apply([device], "GPU", null, null, 50f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 50f, 0, 30, 1f, [buffer]);
         // fillCount = Round(0.5 * 8) = 4
         Assert.Equal(4, buffer.Count(c => c.R == 0xFF));
+    }
+
+    // Reverse: value=50 on 4 LEDs → the last 2 fill (2,3), first 2 empty.
+    [Fact]
+    public void Reverse_Value50_FillsLastHalf()
+    {
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
+        var buffer = new Color[4];
+        var effect = new ProgressBarEffect
+        {
+            FillColorHex = "#FF0000",
+            EmptyColorHex = "#0000FF",
+            FillDirection = FillDirection.Reverse
+        };
+        effect.Apply([device], "GPU", null, null, 50f, 0, 30, 1f, [buffer]);
+        Assert.Equal(0xFF, buffer[0].B); // empty
+        Assert.Equal(0xFF, buffer[1].B); // empty
+        Assert.Equal(0xFF, buffer[2].R); // filled
+        Assert.Equal(0xFF, buffer[3].R); // filled
+    }
+
+    // CenterOut: value=50 on 4 LEDs → centerStart=(4-2)/2=1 → LEDs 1,2 fill.
+    [Fact]
+    public void CenterOut_Value50_FillsMiddle()
+    {
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
+        var buffer = new Color[4];
+        var effect = new ProgressBarEffect
+        {
+            FillColorHex = "#FF0000",
+            EmptyColorHex = "#0000FF",
+            FillDirection = FillDirection.CenterOut
+        };
+        effect.Apply([device], "GPU", null, null, 50f, 0, 30, 1f, [buffer]);
+        Assert.Equal(0xFF, buffer[0].B); // empty
+        Assert.Equal(0xFF, buffer[1].R); // filled
+        Assert.Equal(0xFF, buffer[2].R); // filled
+        Assert.Equal(0xFF, buffer[3].B); // empty
+    }
+
+    // FillDirection round-trips through JSON polymorphic deserialization.
+    [Fact]
+    public void FillDirection_JsonRoundTrips()
+    {
+        var json = """{"Type":"ProgressBar","FillDirection":"CenterOut"}""";
+        var effect = System.Text.Json.JsonSerializer.Deserialize<BaseRgbEffect>(json);
+        var bar = Assert.IsType<ProgressBarEffect>(effect);
+        Assert.Equal(FillDirection.CenterOut, bar.FillDirection);
     }
 }

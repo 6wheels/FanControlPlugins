@@ -19,32 +19,45 @@ namespace FanControl.Rgb.Effects
     public string Color2Hex { get; set; } = "#00FFFF";
     public string Color3Hex { get; set; } = "#9900FF";
 
-    private float _speed = 0.05f;
+    private float _speed = 1.0f;
     public float Speed
     {
+      // Relative wave speed; 1.0 ≈ one cycle every 4s. Clamped very slow to very fast.
       get => _speed;
-      set => _speed = Math.Clamp(value, 0.001f, 2.0f); // Locked between very slow and very fast
+      set => _speed = Math.Clamp(value, 0.001f, 8.0f); // 0.001-8.0
     }
 
     private float _scale = 0.3f;
     public float Scale
     {
+      // Spatial frequency of the wave across LEDs. A scale of 0 would crush the wave.
       get => _scale;
-      set => _scale = Math.Clamp(value, 0.01f, 5.0f); // Prevents a scale of 0 that would crush the wave
+      set => _scale = Math.Clamp(value, 0.01f, 5.0f); // 0.01-5.0
+    }
+
+    private float _saturation = 1.0f;
+    public float Saturation
+    {
+      // Desaturates the wave palette without touching the anchor hex colors.
+      get => _saturation;
+      set => _saturation = Math.Clamp(value, 0.0f, 1.0f); // 0.0-1.0
     }
 
     public AuroraDirection Direction { get; set; } = AuroraDirection.Horizontal;
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
       Color c3 = ParseHex(Color3Hex);
 
-      float time = frameCount * Speed;
+      // Convert frame index to seconds so Speed is cycles/sec regardless of framerate.
+      float seconds = framerate > 0 ? frameCount / (float)framerate : 0f;
+      float time = seconds * Speed * ReferenceCyclesPerSecond * 2f * (float)Math.PI;
       bool isVertical = Direction == AuroraDirection.Vertical;
 
       float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
+      float fade = NormalizeFade(transitionSpeed, framerate);
 
       int ledOffset = 0;
       foreach (var zone in device.Zones)
@@ -76,7 +89,7 @@ namespace FanControl.Rgb.Effects
                         (byte)(waveColor.B * intensity)
                     );
 
-                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, transitionSpeed);
+                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, fade);
                   }
                 }
               }
@@ -99,7 +112,7 @@ namespace FanControl.Rgb.Effects
                     (byte)(waveColor.B * intensity)
                 );
 
-                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, transitionSpeed);
+                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, fade);
               }
             }
           }
@@ -129,8 +142,11 @@ namespace FanControl.Rgb.Effects
       float factor = (float)((mainWave + secondaryWave + 2.0) / 4.0);
 
       // Split the 3-color ramp at the midpoint: c1→c2 in the lower half, c2→c3 in the upper half.
-      if (factor < 0.5f) return LerpColor(c1, c2, factor * 2f);
-      else return LerpColor(c2, c3, (factor - 0.5f) * 2f);
+      Color ramp = factor < 0.5f
+          ? LerpColor(c1, c2, factor * 2f)
+          : LerpColor(c2, c3, (factor - 0.5f) * 2f);
+
+      return AdjustSaturation(ramp, Saturation);
     }
   }
 }

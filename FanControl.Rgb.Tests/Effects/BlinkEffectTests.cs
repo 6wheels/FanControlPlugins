@@ -9,9 +9,9 @@ namespace FanControl.Rgb.Tests.Effects;
 public class BlinkEffectTests
 {
     static void Apply(BlinkEffect effect, IRgbDevice device, Color[] buffer, float value, int frameCount)
-        => effect.Apply([device], "GPU", null, null, value, frameCount, 1f, [buffer]);
+        => effect.Apply([device], "GPU", null, null, value, frameCount, 30, 1f, [buffer]);
 
-    // Default: SlowBlinkHz=0.5, FastBlinkHz=15, Framerate=30.
+    // SlowBlinkHz=0.5 (default), framerate=30.
     // value=0 → hz=0.5, framesPerHalf=30, period=60. frame=0 → Color1.
     [Fact]
     public void ModulateByValue_True_Value0_Frame0_IsColor1()
@@ -42,19 +42,19 @@ public class BlinkEffectTests
     {
         var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
-        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF" };
+        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", FastBlinkHz = 15f };
         Apply(effect, device, buffer, 100f, 0);
         Assert.Equal(0xFF, buffer[0].R);
         Assert.Equal(0x00, buffer[0].B);
     }
 
-    // value=100, framesPerHalf=1. frame=1: phase=1 not < 1 → Color2.
+    // value=100 → hz=15, framesPerHalf=1. frame=1: phase=1 not < 1 → Color2.
     [Fact]
     public void ModulateByValue_True_Value100_Frame1_IsColor2()
     {
         var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
-        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF" };
+        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", FastBlinkHz = 15f };
         Apply(effect, device, buffer, 100f, 1);
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].B);
@@ -66,7 +66,7 @@ public class BlinkEffectTests
     {
         var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[1];
-        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", ModulateByValue = false };
+        var effect = new BlinkEffect { Color1Hex = "#FF0000", Color2Hex = "#0000FF", ModulateByValue = false, FastBlinkHz = 15f };
         Apply(effect, device, buffer, 0f, 1);
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].B);
@@ -78,7 +78,7 @@ public class BlinkEffectTests
     {
         var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[] { new Color(0x11, 0x22, 0x33) };
-        new BlinkEffect().Apply([device], "CPU", null, null, 0f, 0, 1f, [buffer]);
+        new BlinkEffect().Apply([device], "CPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Equal(0x11, buffer[0].R);
     }
 

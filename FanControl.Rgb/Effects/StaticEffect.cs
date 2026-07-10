@@ -6,9 +6,9 @@ namespace FanControl.Rgb.Effects
 {
   public class StaticEffect : BaseRgbEffect
   {
-    public string ColorHex { get; set; } = "#FFFFFF";
+    public string ColorHex { get; set; } = "#FFFFFF"; // hex RGB, "#RRGGBB"
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
       Color baseColor = ParseHex(ColorHex);
       float intensity = ModulateByValue ? Math.Clamp(value / 100f, 0.0f, 1.0f) : 1.0f;
@@ -18,7 +18,8 @@ namespace FanControl.Rgb.Effects
                      (byte)(baseColor.B * intensity)
                  );
 
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, transitionSpeed);
+      float fade = NormalizeFade(transitionSpeed, framerate);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, fade);
     }
   }
 }

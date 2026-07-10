@@ -15,11 +15,12 @@ internal static class FrameRenderer
         string? ledRegex,
         float value,
         int frame,
+        int framerate,
         float transitionSpeed,
         Color[][] frameBuffers)
     {
         var renderDevices = Array.ConvertAll(devices, d => (IRgbDevice)new OpenRgbDeviceAdapter(d));
-        effect.Apply(renderDevices, deviceRegex, zoneRegex, ledRegex, value, frame, transitionSpeed, frameBuffers);
+        effect.Apply(renderDevices, deviceRegex, zoneRegex, ledRegex, value, frame, framerate, transitionSpeed, frameBuffers);
         for (int i = 0; i < frameBuffers.Length; i++)
             broker.UpdateLeds(i, frameBuffers[i]);
     }

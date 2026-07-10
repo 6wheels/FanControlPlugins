@@ -30,7 +30,7 @@ public class FrameRendererTests
         var effect = new StaticEffect { ColorHex = "#FF0000", ModulateByValue = false };
         var buffers = new Color[][] { new Color[3], new Color[2] };
 
-        FrameRenderer.RenderAndFlush(effect, broker, [d1, d2], ".*", null, null, 100f, 0, 1f, buffers);
+        FrameRenderer.RenderAndFlush(effect, broker, [d1, d2], ".*", null, null, 100f, 0, 30, 1f, buffers);
 
         Assert.Equal(2, broker.UpdateCalls.Count);
         Assert.Equal(0, broker.UpdateCalls[0].DeviceIndex);
@@ -45,7 +45,7 @@ public class FrameRendererTests
         var effect = new StaticEffect { ColorHex = "#FF0000", ModulateByValue = false };
         var buffers = new Color[][] { new Color[2] };
 
-        FrameRenderer.RenderAndFlush(effect, broker, [device], ".*", null, null, 100f, 0, 1f, buffers);
+        FrameRenderer.RenderAndFlush(effect, broker, [device], ".*", null, null, 100f, 0, 30, 1f, buffers);
 
         var flushed = broker.UpdateCalls[0].Colors;
         Assert.All(flushed, c =>

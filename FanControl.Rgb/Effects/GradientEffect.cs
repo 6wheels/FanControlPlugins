@@ -6,21 +6,23 @@ namespace FanControl.Rgb.Effects
 {
   public class GradientEffect : BaseRgbEffect
   {
+    // 2-stop fallback used when ColorStops is empty.
     public string ColorMinHex { get; set; } = "#00FF00";
     public string ColorMaxHex { get; set; } = "#FF0000";
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, float transitionSpeed, Color[] buffer)
+    // Optional multi-stop gradient. When non-empty it overrides ColorMinHex/ColorMaxHex.
+    // Stop positions are 0.0-1.0; the sensor ratio (value/100) selects the color.
+    public List<GradientStop> ColorStops { get; set; } = new();
+
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
     {
-      Color colorMin = ParseHex(ColorMinHex);
-      Color colorMax = ParseHex(ColorMaxHex);
+      var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
       float ratio = Math.Clamp(value / 100f, 0.0f, 1.0f);
+      Color target = SampleGradient(stops, ratio);
 
-      byte r = (byte)(colorMin.R + (colorMax.R - colorMin.R) * ratio);
-      byte g = (byte)(colorMin.G + (colorMax.G - colorMin.G) * ratio);
-      byte b = (byte)(colorMin.B + (colorMax.B - colorMin.B) * ratio);
-
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, new Color(r, g, b), transitionSpeed);
+      float fade = NormalizeFade(transitionSpeed, framerate);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, target, fade);
     }
   }
 }

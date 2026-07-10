@@ -398,7 +398,7 @@ namespace FanControl.Rgb
 
         Console.Write($"\rMode: {(isAutoValue ? "auto  " : "manual")} | Value: {valToPass:F1}%   ");
 
-        FrameRenderer.RenderAndFlush(effect, broker, devices, deviceRegex, zoneRegex, ledRegex, valToPass, frameCount, 1.0f, frameBuffers);
+        FrameRenderer.RenderAndFlush(effect, broker, devices, deviceRegex, zoneRegex, ledRegex, valToPass, frameCount, 30, 1.0f, frameBuffers);
 
         frameCount++;
         Thread.Sleep(33);

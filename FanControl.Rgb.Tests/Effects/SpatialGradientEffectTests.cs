@@ -14,7 +14,7 @@ public class SpatialGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].G);
         Assert.Equal(0x00, buffer[0].B);
@@ -27,7 +27,7 @@ public class SpatialGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Equal(0x00, buffer[3].R);
         Assert.Equal(0x00, buffer[3].G);
         Assert.Equal(0xFF, buffer[3].B);
@@ -40,7 +40,7 @@ public class SpatialGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ModulateByValue = true };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0, c.R + c.G + c.B));
     }
 
@@ -51,7 +51,7 @@ public class SpatialGradientEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
     }
 
@@ -62,7 +62,7 @@ public class SpatialGradientEffectTests
         var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 4, 2); // 4 wide, 2 tall, 8 LEDs
         var buffer = new Color[8];
         var effect = new SpatialGradientEffect { ColorMinHex = "#00FF00", ColorMaxHex = "#0000FF", ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         // LED (y=0, x=0) → index 0 → ratio=0 → ColorMin (#00FF00)
         Assert.Equal(0x00, buffer[0].R);
         Assert.Equal(0xFF, buffer[0].G);

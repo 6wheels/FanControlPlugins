@@ -14,7 +14,7 @@ public class AuroraEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = true };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.All(buffer, c => Assert.Equal(0, c.R + c.G + c.B));
     }
 
@@ -26,7 +26,7 @@ public class AuroraEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = true };
-        effect.Apply([device], "GPU", null, null, 100f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 100f, 0, 30, 1f, [buffer]);
         Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
     }
 
@@ -37,7 +37,7 @@ public class AuroraEffectTests
         var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
         var buffer = new Color[4];
         var effect = new AuroraEffect { ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 0, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
         Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
     }
 
@@ -47,7 +47,7 @@ public class AuroraEffectTests
     {
         var device = DeviceBuilder.MakeRenderDevice("GPU", 1);
         var buffer = new Color[] { new Color(0x11, 0x22, 0x33) };
-        new AuroraEffect().Apply([device], "CPU", null, null, 100f, 1, 1f, [buffer]);
+        new AuroraEffect().Apply([device], "CPU", null, null, 100f, 1, 30, 1f, [buffer]);
         Assert.Equal(0x11, buffer[0].R);
     }
 
@@ -58,7 +58,7 @@ public class AuroraEffectTests
         var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 5, 3);
         var buffer = new Color[15];
         var effect = new AuroraEffect { ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 1, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 1, 30, 1f, [buffer]);
         Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
     }
 
@@ -69,7 +69,33 @@ public class AuroraEffectTests
         var device = DeviceBuilder.MakeRenderMatrixDevice("GPU", 5, 3);
         var buffer = new Color[15];
         var effect = new AuroraEffect { Direction = AuroraDirection.Vertical, ModulateByValue = false };
-        effect.Apply([device], "GPU", null, null, 0f, 1, 1f, [buffer]);
+        effect.Apply([device], "GPU", null, null, 0f, 1, 30, 1f, [buffer]);
         Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
+    }
+
+    // Saturation=0 desaturates the whole palette → every lit cell is grayscale (R==G==B).
+    [Fact]
+    public void Saturation_Zero_IsGrayscale()
+    {
+        var device = DeviceBuilder.MakeRenderDevice("GPU", 4);
+        var buffer = new Color[4];
+        var effect = new AuroraEffect { Saturation = 0f, ModulateByValue = false };
+        effect.Apply([device], "GPU", null, null, 0f, 0, 30, 1f, [buffer]);
+        Assert.All(buffer, c =>
+        {
+            Assert.Equal(c.R, c.G);
+            Assert.Equal(c.G, c.B);
+        });
+        Assert.Contains(buffer, c => c.R + c.G + c.B > 0);
+    }
+
+    // Saturation is clamped to [0,1].
+    [Fact]
+    public void Saturation_ClampedToUnitRange()
+    {
+        var effect = new AuroraEffect { Saturation = 5f };
+        Assert.Equal(1f, effect.Saturation);
+        effect.Saturation = -1f;
+        Assert.Equal(0f, effect.Saturation);
     }
 }
