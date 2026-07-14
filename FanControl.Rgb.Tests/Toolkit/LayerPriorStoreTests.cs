@@ -52,6 +52,21 @@ public class LayerPriorStoreTests
         Assert.Equal(16, afterReconnect[1].Length);
     }
 
+    // Same device count but a device's LED count changed: the per-element shape check must
+    // also trigger a realloc, not just the top-level device-count change.
+    [Fact]
+    public void Ensure_ReallocatesWhenPerDeviceLedCountChanges()
+    {
+        var store = new LayerPriorStore();
+        var binding = NewBinding();
+
+        var before = store.Ensure(binding, new[] { new Color[8], new Color[4] });
+        var after = store.Ensure(binding, new[] { new Color[8], new Color[6] });
+
+        Assert.NotSame(before, after);
+        Assert.Equal(6, after[1].Length);
+    }
+
     // The same binding is shared by both sinks, which have differently shaped buffers.
     // Each sink owns its own store, so they must never share (or thrash) prior state —
     // the root cause of the flicker + crash regression.
