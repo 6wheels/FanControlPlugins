@@ -69,5 +69,5 @@ public class EffectDiscoveryTests
 // works against an arbitrary assembly.
 internal sealed class LocalProbeEffect : BaseRgbEffect
 {
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer) { }
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer) { }
 }

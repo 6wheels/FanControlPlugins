@@ -26,7 +26,7 @@ namespace FanControl.Rgb.Effects
       set => _fastBlinkHz = Math.Max(0.1f, value);
     }
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       Color c1 = ParseHex(Color1Hex);
       Color c2 = ParseHex(Color2Hex);
@@ -41,7 +41,7 @@ namespace FanControl.Rgb.Effects
       bool isColor1 = phase < framesPerHalfPeriod;
       Color targetColor = isColor1 ? c1 : c2;
 
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, targetColor, 1.0f);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, writer, targetColor, 1.0f);
     }
   }
 }

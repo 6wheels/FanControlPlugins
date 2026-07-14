@@ -17,7 +17,7 @@ namespace FanControl.Rgb.Effects
     // Stop positions are 0.0-1.0; each LED's fill weight selects the color.
     public List<GradientStop> ColorStops { get; set; } = new();
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
@@ -41,7 +41,7 @@ namespace FanControl.Rgb.Effects
               for (int x = 0; x < width; x++)
               {
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
-                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
+                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < writer.Length)
                 {
                   string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
@@ -89,7 +89,7 @@ namespace FanControl.Rgb.Effects
 
               int ledIndex = targetLeds[i];
               Color targetColor = SampleGradient(stops, weight);
-              buffer[ledIndex] = LerpColor(buffer[ledIndex], targetColor, fade);
+              writer.Write(ledIndex, targetColor, fade);
             }
           }
         }

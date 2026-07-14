@@ -150,6 +150,26 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 - Below the threshold the rule is inactive and leaves those LEDs untouched, so a lower-threshold rule (or OpenRGB itself) can control them.
 - The effect receives a value re-scaled to `0–100` across the activation range, so `ModulateByValue` effects ramp from the threshold up to 100%.
 
+### Layering & Compositing
+Rules are drawn in order, each compositing over the rules before it, so several active rules can share the same LEDs. Two optional per-rule fields control how a layer blends with the one below:
+
+- `Opacity` — `0.0`–`1.0`, default `1.0`. At `1.0` the layer fully overwrites the layers below (so a red rule over a blue rule renders solid red). Lower it for translucent stacking: `0.5` blends the layer 50/50 with what is underneath.
+- `BlackIsTransparent` — `true`/`false`, default `false`. When `true`, any LED the effect renders as pure black (`#000000`) is skipped, letting the layer below show through instead of being painted black. Leave it `false` to treat black as an opaque "off" color (the default for value-modulated effects that dim to black).
+
+`transitionSpeed` is purely temporal smoothing: each layer fades from its own previous frame toward its new target, independent of the layers beneath it — it never blends lower layers in.
+
+```json
+{
+  "Id": "kb_base",
+  "Name": "Keyboard Base",
+  "DeviceRegex": ".*Alloy.*",
+  "ActivationThreshold": 0.0,
+  "Opacity": 1.0,
+  "BlackIsTransparent": false,
+  "Effect": { "Type": "Static", "ColorHex": "#101010", "ModulateByValue": false }
+}
+```
+
 ### Effects Types
 - `Static`: Requires `ColorHex`. Displays a solid color, optionally dimmed by the current value when `ModulateByValue` is true.
 - `Gradient`: Requires `ColorMinHex` and `ColorMaxHex`. Colors interpolate between minimum and maximum values based on the current value.
@@ -158,7 +178,7 @@ Once the plugin loads the JSON, you will see a new custom sensor card in FanCont
 - `Aurora`: Requires `Color1Hex`, `Color2Hex`, `Color3Hex`, and `Direction` (`Horizontal` or `Vertical`). Produces a moving band effect that respects 2D matrix layouts when available.
 - `Rainbow`: Optional `Speed` and `Spread`. Sweeps an HSV hue across the LEDs (1D strip or 2D matrix); `Speed` sets the animation rate, `Spread` how many hue cycles span the device.
 - `SpatialGradient`: Requires `ColorMinHex` and `ColorMaxHex`. Draws a left-to-right gradient across a 1D strip or 2D matrix.
-- `GaugeGradient`: Requires `ColorMinHex` and `ColorMaxHex`. At value `0`, all selected LEDs are `ColorMinHex`. As the value increases, the gradient fills spatially toward `ColorMaxHex`.
+- `GaugeGradient`: Requires `ColorMinHex` and `ColorMaxHex`. At value `0`, all selected LEDs are `ColorMinHex`. As the value increases, the gradient fills spatially toward `ColorMaxHex`. Set `ColorMinHex` to `#000000` with `BlackIsTransparent: true` on the rule to let the empty region reveal the layer below instead of showing black.
 - `ProgressBar`: Requires `FillColorHex` and optional `EmptyColorHex`. Lights LEDs sequentially to represent the current value, with an optional transparent empty state.
 
 ## 📚 Dependencies

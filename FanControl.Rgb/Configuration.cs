@@ -132,6 +132,19 @@ namespace FanControl.Rgb
       set => _transitionSpeed = value.HasValue ? Math.Clamp(value.Value, 0f, 1f) : null;
     }
 
+    private float _opacity = 1f;
+    // Layer opacity when compositing over the layers below. 1.0 = full overwrite
+    // (fixes stacked-effect color bleed), <1.0 = translucent stacking.
+    public float Opacity
+    {
+      get => _opacity;
+      set => _opacity = Math.Clamp(value, 0f, 1f);
+    }
+
+    // When an effect outputs pure black (0,0,0), skip the composite and let the layer
+    // below show through. Opt-in so MBV "off → black" effects keep behaving as opaque off.
+    public bool BlackIsTransparent { get; set; } = false;
+
     public BaseRgbEffect Effect { get; set; } = null!;
   }
 }

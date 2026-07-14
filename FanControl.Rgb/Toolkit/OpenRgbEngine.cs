@@ -26,6 +26,7 @@ internal sealed class OpenRgbEngine : IDisposable
     private IRgbDevice[] _renderDevices = [];
     private Color[][] _buffers = [];
     private bool[] _deviceNeedsUpdate = [];
+    private readonly LayerPriorStore _priorStore = new();
     private int _frameCount;
     private int _retryCount;
     private string _lastConnectError = string.Empty;
@@ -61,7 +62,11 @@ internal sealed class OpenRgbEngine : IDisposable
 
     // Bindings are swapped atomically (new list each time) so a concurrent tick
     // never iterates a list being mutated by Load().
-    public void SetBindings(IReadOnlyList<RuleBinding> bindings) => _bindings = bindings;
+    public void SetBindings(IReadOnlyList<RuleBinding> bindings)
+    {
+        _bindings = bindings;
+        _priorStore.Clear(); // old bindings' prior state no longer applies
+    }
 
     public void Start()
     {
@@ -227,7 +232,7 @@ internal sealed class OpenRgbEngine : IDisposable
     }
 
     private RenderContext BuildContext() =>
-        new(_broker!, _renderDevices, _buffers, _deviceNeedsUpdate, _bindings, _config);
+        new(_broker!, _renderDevices, _buffers, _deviceNeedsUpdate, _priorStore, _bindings, _config);
 
     // --- Pure render helpers (effect logic untouched, kept static + testable) ---
 
@@ -257,6 +262,10 @@ internal sealed class OpenRgbEngine : IDisposable
 
             float speedToUse = binding.Config.TransitionSpeed ?? ctx.Config.TransitionSpeed;
 
+            // This sink's own per-layer prior-output store, revalidated against the
+            // current buffer shape (a reconnect can rebuild the buffers).
+            Color[][] prior = ctx.PriorStore.Ensure(binding, ctx.Buffers);
+
             binding.Config.Effect?.Apply(
                 ctx.Devices,
                 binding.Config.DeviceRegex,
@@ -266,7 +275,10 @@ internal sealed class OpenRgbEngine : IDisposable
                 frameCount,
                 ctx.Config.Framerate,
                 speedToUse,
-                ctx.Buffers
+                ctx.Buffers,
+                prior,
+                binding.Config.Opacity,
+                binding.Config.BlackIsTransparent
             );
 
             for (int i = 0; i < ctx.Devices.Length; i++)
