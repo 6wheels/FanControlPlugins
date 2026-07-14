@@ -16,6 +16,7 @@ internal readonly record struct RenderContext(
     // Frame buffers
     Color[][] Buffers,
     bool[] DeviceNeedsUpdate,
+    LayerPriorStore PriorStore,
     // Functional
     IReadOnlyList<RuleBinding> Bindings,
     OpenRgbConfig Config);

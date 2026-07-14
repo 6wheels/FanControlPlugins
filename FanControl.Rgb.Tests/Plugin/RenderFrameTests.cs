@@ -36,7 +36,7 @@ public class RenderFrameTests
         List<RuleBinding> bindings, OpenRgbConfig? config = null)
     {
         var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length],
-            bindings, config ?? new OpenRgbConfig());
+            new LayerPriorStore(), bindings, config ?? new OpenRgbConfig());
         OpenRgbEngine.RenderLayers(in ctx, 1);
     }
 
@@ -151,7 +151,7 @@ public class RenderFrameTests
         {
             Startup = new StartupConfig { DurationSeconds = 60.0, Effect = new StaticEffect { ColorHex = "#0000FF", ModulateByValue = false } }
         };
-        var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length], [], config);
+        var ctx = new RenderContext(broker, devices, buffers, new bool[devices.Length], new LayerPriorStore(), [], config);
 
         OpenRgbEngine.RenderStartupFrame(in ctx, 1);
 

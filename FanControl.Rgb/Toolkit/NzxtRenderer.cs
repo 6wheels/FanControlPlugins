@@ -25,6 +25,7 @@ internal sealed class NzxtRenderer : IDisposable
     private readonly Color[][] _lastSent;
     private readonly bool[] _primed;
     private readonly bool[] _needsUpdate;
+    private readonly LayerPriorStore _priorStore = new();
 
     private volatile IReadOnlyList<RuleBinding> _bindings = [];
     private Timer? _timer;
@@ -61,7 +62,11 @@ internal sealed class NzxtRenderer : IDisposable
 
     // Swapped atomically (new list each time) so a concurrent tick never iterates
     // a list being mutated by Load().
-    public void SetBindings(IReadOnlyList<RuleBinding> bindings) => _bindings = bindings;
+    public void SetBindings(IReadOnlyList<RuleBinding> bindings)
+    {
+        _bindings = bindings;
+        _priorStore.Clear(); // old bindings' prior state no longer applies
+    }
 
     public void Start()
     {
@@ -134,6 +139,9 @@ internal sealed class NzxtRenderer : IDisposable
 
             float speed = binding.Config.TransitionSpeed ?? _defaultTransitionSpeed;
 
+            // This sink's own per-layer prior-output store, revalidated against the buffer shape.
+            Color[][] prior = _priorStore.Ensure(binding, _buffers);
+
             binding.Config.Effect?.Apply(
                 _renderDevices,
                 binding.Config.DeviceRegex,
@@ -143,7 +151,10 @@ internal sealed class NzxtRenderer : IDisposable
                 frame,
                 _config.RefreshHz,
                 speed,
-                _buffers);
+                _buffers,
+                prior,
+                binding.Config.Opacity,
+                binding.Config.BlackIsTransparent);
 
             for (int i = 0; i < _devices.Length; i++)
             {

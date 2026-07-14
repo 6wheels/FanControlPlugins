@@ -61,7 +61,7 @@ namespace FanControl.Rgb.Effects
     /// <paramref name="framerate"/> is the sink's real frames-per-second, letting effects
     /// convert <paramref name="frameCount"/> to seconds so speeds are wall-clock accurate.
     /// </summary>
-    public void Apply(IRgbDevice[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, int framerate, float transitionSpeed, Color[][] frameBuffers)
+    public void Apply(IRgbDevice[] devices, string deviceRegex, string? zoneRegex, string? ledRegex, float currentValue, int frameCount, int framerate, float transitionSpeed, Color[][] frameBuffers, Color[][]? priorBuffers = null, float opacity = 1f, bool blackIsTransparent = false)
     {
       if (IsFinished) return;
       for (int i = 0; i < devices.Length; i++)
@@ -69,7 +69,8 @@ namespace FanControl.Rgb.Effects
         var device = devices[i];
         if (Regex.IsMatch(device.Name ?? "", deviceRegex))
         {
-          ProcessEffect(device, zoneRegex, ledRegex, currentValue, frameCount, framerate, transitionSpeed, new LedWriter(frameBuffers[i]));
+          var writer = new LedWriter(frameBuffers[i], priorBuffers?[i], opacity, blackIsTransparent);
+          ProcessEffect(device, zoneRegex, ledRegex, currentValue, frameCount, framerate, transitionSpeed, writer);
         }
       }
     }
