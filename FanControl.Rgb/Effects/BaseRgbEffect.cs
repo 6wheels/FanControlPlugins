@@ -69,25 +69,15 @@ namespace FanControl.Rgb.Effects
         var device = devices[i];
         if (Regex.IsMatch(device.Name ?? "", deviceRegex))
         {
-          ProcessEffect(device, zoneRegex, ledRegex, currentValue, frameCount, framerate, transitionSpeed, frameBuffers[i]);
+          ProcessEffect(device, zoneRegex, ledRegex, currentValue, frameCount, framerate, transitionSpeed, new LedWriter(frameBuffers[i]));
         }
       }
     }
 
-    protected abstract void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer);
+    protected abstract void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer);
 
-    protected static void ApplyToTargetLeds(IRgbDevice device, string? zoneRegex, string? ledRegex, Color[] currentColors, Color targetColor, float fadeSpeed = 1.0f)
+    protected static void ApplyToTargetLeds(IRgbDevice device, string? zoneRegex, string? ledRegex, LedWriter writer, Color targetColor, float fadeSpeed = 1.0f)
     {
-      static Color LerpColor(Color current, Color target, float speed)
-      {
-        if (speed <= 0f || speed >= 1.0f) return target;
-
-        byte r = (byte)(current.R + (target.R - current.R) * speed);
-        byte g = (byte)(current.G + (target.G - current.G) * speed);
-        byte b = (byte)(current.B + (target.B - current.B) * speed);
-        return new Color(r, g, b);
-      }
-
       int ledOffset = 0;
       foreach (var zone in device.Zones)
       {
@@ -98,7 +88,7 @@ namespace FanControl.Rgb.Effects
             string ledName = device.Leds[ledOffset + l].Name;
             if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
             {
-              currentColors[ledOffset + l] = LerpColor(currentColors[ledOffset + l], targetColor, fadeSpeed);
+              writer.Write(ledOffset + l, targetColor, fadeSpeed);
             }
           }
         }
@@ -106,11 +96,7 @@ namespace FanControl.Rgb.Effects
       }
     }
 
-    protected static Color LerpColor(Color a, Color b, float t)
-    {
-      t = Math.Clamp(t, 0f, 1f);
-      return new Color((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
-    }
+    protected static Color LerpColor(Color a, Color b, float t) => LedWriter.Lerp(a, b, t);
 
     protected static Color ParseHex(string hex)
     {

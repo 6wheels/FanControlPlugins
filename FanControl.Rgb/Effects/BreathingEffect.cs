@@ -12,7 +12,7 @@ namespace FanControl.Rgb.Effects
     public float MinSpeed { get; set; } = 1.0f; // relative speed at value=0, 0.0-10.0 (1.0 ≈ one breath / 4s)
     public float MaxSpeed { get; set; } = 3.0f; // relative speed at value=100, 0.0-10.0
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       Color baseCol = ParseHex(BaseColorHex);
       Color peakCol = ParseHex(PeakColorHex);
@@ -31,7 +31,7 @@ namespace FanControl.Rgb.Effects
 
       Color target = new(r, g, b);
       float fade = NormalizeFade(transitionSpeed, framerate);
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, target, fade);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, writer, target, fade);
     }
   }
 }

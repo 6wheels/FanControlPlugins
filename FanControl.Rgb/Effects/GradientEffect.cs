@@ -14,7 +14,7 @@ namespace FanControl.Rgb.Effects
     // Stop positions are 0.0-1.0; the sensor ratio (value/100) selects the color.
     public List<GradientStop> ColorStops { get; set; } = new();
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
@@ -22,7 +22,7 @@ namespace FanControl.Rgb.Effects
       Color target = SampleGradient(stops, ratio);
 
       float fade = NormalizeFade(transitionSpeed, framerate);
-      ApplyToTargetLeds(device, zoneRegex, ledRegex, buffer, target, fade);
+      ApplyToTargetLeds(device, zoneRegex, ledRegex, writer, target, fade);
     }
   }
 }

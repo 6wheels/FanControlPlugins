@@ -12,7 +12,7 @@ namespace FanControl.Rgb.Effects
     public float Saturation { get; set; } = 1.0f; // HSV saturation, 0.0-1.0
     public float StartHue { get; set; } = 0.0f;   // base hue offset in degrees, 0.0-360.0
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       float brightness = ModulateByValue ? Math.Clamp(value / 100f, 0f, 1f) : 1f;
       // Convert frame index to seconds so Speed is cycles/sec regardless of framerate.
@@ -34,14 +34,14 @@ namespace FanControl.Rgb.Effects
               for (int x = 0; x < width; x++)
               {
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
-                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
+                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < writer.Length)
                 {
                   string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
                   {
                     float hue = ((phase + (int)ledIndex * Spread) % 360f + 360f) % 360f;
                     Color target = HsvToRgb(hue, Saturation, brightness);
-                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], target, fade);
+                    writer.Write((int)(ledOffset + ledIndex), target, fade);
                   }
                 }
               }
@@ -56,7 +56,7 @@ namespace FanControl.Rgb.Effects
               {
                 float hue = ((phase + l * Spread) % 360f + 360f) % 360f;
                 Color target = HsvToRgb(hue, Saturation, brightness);
-                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], target, fade);
+                writer.Write(ledOffset + l, target, fade);
               }
             }
           }

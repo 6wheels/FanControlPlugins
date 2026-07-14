@@ -23,7 +23,7 @@ namespace FanControl.Rgb.Effects
 
     public FillDirection FillDirection { get; set; } = FillDirection.Forward;
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       Color fillCol = ParseHex(FillColorHex);
       bool isTransparent = string.IsNullOrEmpty(EmptyColorHex) || EmptyColorHex.Equals("Transparent", StringComparison.OrdinalIgnoreCase);
@@ -50,7 +50,7 @@ namespace FanControl.Rgb.Effects
               for (int x = 0; x < width; x++)
               {
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
-                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
+                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < writer.Length)
                 {
                   int globalIndex = ledOffset + (int)ledIndex;
                   string ledName = device.Leds[globalIndex].Name;
@@ -105,11 +105,11 @@ namespace FanControl.Rgb.Effects
 
               if (filled)
               {
-                buffer[ledIndex] = LerpColor(buffer[ledIndex], fillCol, fade);
+                writer.Write(ledIndex, fillCol, fade);
               }
               else if (!isTransparent)
               {
-                buffer[ledIndex] = LerpColor(buffer[ledIndex], emptyCol, fade);
+                writer.Write(ledIndex, emptyCol, fade);
               }
             }
           }

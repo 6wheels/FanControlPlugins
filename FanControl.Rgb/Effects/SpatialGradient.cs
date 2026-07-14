@@ -16,7 +16,7 @@ namespace FanControl.Rgb.Effects
     // Stop positions are 0.0-1.0 mapped across the LEDs of each zone.
     public List<GradientStop> ColorStops { get; set; } = new();
 
-    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, Color[] buffer)
+    protected override void ProcessEffect(IRgbDevice device, string? zoneRegex, string? ledRegex, float value, int frameCount, int framerate, float transitionSpeed, LedWriter writer)
     {
       var stops = ResolveStops(ColorStops, ColorMinHex, ColorMaxHex);
 
@@ -39,7 +39,7 @@ namespace FanControl.Rgb.Effects
               for (int x = 0; x < width; x++)
               {
                 uint ledIndex = zone.MatrixMap.Matrix[y, x];
-                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < buffer.Length)
+                if (ledIndex != 0xFFFFFFFF && ledOffset + ledIndex < writer.Length)
                 {
                   string ledName = device.Leds[ledOffset + (int)ledIndex].Name;
                   if (string.IsNullOrEmpty(ledRegex) || Regex.IsMatch(ledName, ledRegex))
@@ -53,7 +53,7 @@ namespace FanControl.Rgb.Effects
                         (byte)(gradColor.B * intensity)
                     );
 
-                    buffer[ledOffset + ledIndex] = LerpColor(buffer[ledOffset + ledIndex], targetColor, fade);
+                    writer.Write((int)(ledOffset + ledIndex), targetColor, fade);
                   }
                 }
               }
@@ -76,7 +76,7 @@ namespace FanControl.Rgb.Effects
                     (byte)(gradColor.B * intensity)
                 );
 
-                buffer[ledOffset + l] = LerpColor(buffer[ledOffset + l], targetColor, fade);
+                writer.Write(ledOffset + l, targetColor, fade);
               }
             }
           }
